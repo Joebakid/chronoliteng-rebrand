@@ -1,4 +1,9 @@
-const BASE_URL = "http://localhost:5000/api";
+const API_ORIGIN =
+  process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
+
+export const BASE_URL = `${API_ORIGIN}/api`;
+export const ASSET_BASE_URL =
+  process.env.NEXT_PUBLIC_ASSET_ORIGIN || API_ORIGIN;
 
 export async function getProducts() {
   const res = await fetch(`${BASE_URL}/products`, {

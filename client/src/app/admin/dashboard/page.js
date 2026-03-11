@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAdminAnalytics, getAdminOrders } from "@/lib/api";
+import { BASE_URL, getAdminAnalytics, getAdminOrders } from "@/lib/api";
 import { clearAdminToken, getAdminToken } from "@/lib/adminAuth";
 import { getStoredUserSession } from "@/lib/userAuth";
 
@@ -39,7 +39,7 @@ export default function AdminDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/products");
+      const res = await fetch(`${BASE_URL}/products`);
       setProducts(await res.json());
     } catch {
       setStatus({ type: "error", message: "Unable to load products." });
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
     const formData = new FormData();
     Object.entries(form).forEach(([k, v]) => v && formData.append(k, v));
     try {
-      const res = await fetch(isEditing ? `http://localhost:5000/api/products/${editingId}` : "http://localhost:5000/api/products", {
+      const res = await fetch(isEditing ? `${BASE_URL}/products/${editingId}` : `${BASE_URL}/products`, {
         method: isEditing ? "PUT" : "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -122,7 +122,7 @@ export default function AdminDashboard() {
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+      const res = await fetch(`${BASE_URL}/products/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
