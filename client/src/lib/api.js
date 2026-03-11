@@ -1,8 +1,7 @@
 const API_ORIGIN =
   process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
-const isBrowser = typeof window !== "undefined";
 
-export const BASE_URL = isBrowser ? "/api" : `${API_ORIGIN}/api`;
+export const BASE_URL = `${API_ORIGIN}/api`;
 export const ASSET_BASE_URL =
   process.env.NEXT_PUBLIC_ASSET_ORIGIN || API_ORIGIN;
 
@@ -20,21 +19,17 @@ function getNetworkErrorMessage() {
 
 export async function apiFetch(path, options = {}) {
   let res;
-
   try {
     res = await fetch(`${BASE_URL}${path}`, options);
   } catch {
     throw new Error(getNetworkErrorMessage());
   }
-
   const payload = await parsePayload(res);
-
   if (!res.ok) {
     const error = new Error(payload?.message || options.fallbackMessage || "Request failed");
     error.status = res.status;
     throw error;
   }
-
   return payload;
 }
 
