@@ -5,92 +5,98 @@ export const BASE_URL = `${API_ORIGIN}/api`;
 export const ASSET_BASE_URL =
   process.env.NEXT_PUBLIC_ASSET_ORIGIN || API_ORIGIN;
 
-export async function getProducts() {
-  const res = await fetch(`${BASE_URL}/products`, {
-    cache: "no-store"
-  });
-  if (!res.ok) {
-    throw new Error("Unable to load products");
+async function parsePayload(res) {
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
   }
-  return res.json();
+  return null;
+}
+
+function getNetworkErrorMessage() {
+  return `API is unreachable at ${BASE_URL}. Start the backend server or set NEXT_PUBLIC_API_ORIGIN to the correct backend URL.`;
+}
+
+export async function apiFetch(path, options = {}) {
+  let res;
+
+  try {
+    res = await fetch(`${BASE_URL}${path}`, options);
+  } catch {
+    throw new Error(getNetworkErrorMessage());
+  }
+
+  const payload = await parsePayload(res);
+
+  if (!res.ok) {
+    const error = new Error(payload?.message || options.fallbackMessage || "Request failed");
+    error.status = res.status;
+    throw error;
+  }
+
+  return payload;
+}
+
+export async function getProducts() {
+  return apiFetch("/products", {
+    cache: "no-store",
+    fallbackMessage: "Unable to load products",
+  });
 }
 
 export async function getProduct(slug) {
-  const res = await fetch(`${BASE_URL}/products/${slug}`, {
-    cache: "no-store"
+  return apiFetch(`/products/${slug}`, {
+    cache: "no-store",
+    fallbackMessage: "Unable to load product",
   });
-  if (!res.ok) {
-    throw new Error("Unable to load product");
-  }
-  return res.json();
 }
 
 export async function loginUser(data) {
-  const res = await fetch(`${BASE_URL}/auth/login`, {
+  return apiFetch("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    fallbackMessage: "Login failed",
   });
-  const payload = await res.json();
-  if (!res.ok) {
-    throw new Error(payload?.message || "Login failed");
-  }
-  return payload;
 }
 
 export async function registerUser(data) {
-  const res = await fetch(`${BASE_URL}/auth/register`, {
+  return apiFetch("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    fallbackMessage: "Registration failed",
   });
-  const payload = await res.json();
-  if (!res.ok) {
-    throw new Error(payload?.message || "Registration failed");
-  }
-  return payload;
 }
 
 export async function getAdminAnalytics(token) {
-  const res = await fetch(`${BASE_URL}/products/analytics/overview`, {
+  return apiFetch("/products/analytics/overview", {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    fallbackMessage: "Unable to load analytics",
   });
-  const payload = await res.json();
-  if (!res.ok) {
-    throw new Error(payload?.message || "Unable to load analytics");
-  }
-  return payload;
 }
 
 export async function createOrder(data, token) {
-  const res = await fetch(`${BASE_URL}/orders`, {
+  return apiFetch("/orders", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
+    fallbackMessage: "Unable to create order",
   });
-  const payload = await res.json();
-  if (!res.ok) {
-    throw new Error(payload?.message || "Unable to create order");
-  }
-  return payload;
 }
 
 export async function getAdminOrders(token) {
-  const res = await fetch(`${BASE_URL}/orders`, {
+  return apiFetch("/orders", {
     cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    fallbackMessage: "Unable to load orders",
   });
-  const payload = await res.json();
-  if (!res.ok) {
-    throw new Error(payload?.message || "Unable to load orders");
-  }
-  return payload;
 }

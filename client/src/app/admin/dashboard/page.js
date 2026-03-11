@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BASE_URL, getAdminAnalytics, getAdminOrders } from "@/lib/api";
+import { apiFetch, getAdminAnalytics, getAdminOrders } from "@/lib/api";
 import { clearAdminToken, getAdminToken } from "@/lib/adminAuth";
 import { getStoredUserSession } from "@/lib/userAuth";
 
@@ -39,10 +39,12 @@ export default function AdminDashboard() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/products`);
-      setProducts(await res.json());
-    } catch {
-      setStatus({ type: "error", message: "Unable to load products." });
+      const data = await apiFetch("/products", {
+        fallbackMessage: "Unable to load products.",
+      });
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setStatus({ type: "error", message: err.message || "Unable to load products." });
     } finally {
       setFetching(false);
     }
@@ -75,26 +77,23 @@ export default function AdminDashboard() {
     const formData = new FormData();
     Object.entries(form).forEach(([k, v]) => v && formData.append(k, v));
     try {
-      const res = await fetch(isEditing ? `${BASE_URL}/products/${editingId}` : `${BASE_URL}/products`, {
+      await apiFetch(isEditing ? `/products/${editingId}` : "/products", {
         method: isEditing ? "PUT" : "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
+        fallbackMessage: isEditing ? "Update failed." : "Upload failed.",
       });
-      if (res.status === 401) {
-        clearAdminToken();
-        throw new Error("Your admin session expired. Sign in again.");
-      }
-      if (!res.ok) throw new Error();
       resetForm();
       setStatus({ type: "success", message: isEditing ? "Product updated." : "Product uploaded." });
       fetchProducts();
       getAdminAnalytics(token).then(setAnalytics).catch(() => {});
-    } catch {
+    } catch (err) {
+      if (err.status === 401) {
+        clearAdminToken();
+      }
       setStatus({
         type: "error",
-        message: isEditing
-          ? "Update failed. Confirm you are signed in as admin and try again."
-          : "Upload failed. Confirm you are signed in as admin and try again.",
+        message: err.message || (isEditing ? "Update failed." : "Upload failed."),
       });
     } finally {
       setLoading(false);
@@ -122,19 +121,19 @@ export default function AdminDashboard() {
   const handleDelete = async (id) => {
     setDeletingId(id);
     try {
-      const res = await fetch(`${BASE_URL}/products/${id}`, {
+      await apiFetch(`/products/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
+        fallbackMessage: "Delete failed.",
       });
-      if (res.status === 401) {
-        clearAdminToken();
-        throw new Error("Your admin session expired. Sign in again.");
-      }
       setStatus({ type: "success", message: "Product deleted." });
       fetchProducts();
       getAdminAnalytics(token).then(setAnalytics).catch(() => {});
-    } catch {
-      setStatus({ type: "error", message: "Delete failed. Confirm you are signed in as admin and try again." });
+    } catch (err) {
+      if (err.status === 401) {
+        clearAdminToken();
+      }
+      setStatus({ type: "error", message: err.message || "Delete failed." });
     } finally {
       setDeletingId("");
     }
