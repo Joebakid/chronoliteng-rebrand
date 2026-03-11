@@ -43,6 +43,47 @@ function parseColors(colors) {
     .filter(Boolean);
 }
 
+async function uploadImageToCloudinary(file) {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Cloudinary environment variables are missing");
+  }
+
+  const formData = new FormData();
+  formData.append(
+    "file",
+    new Blob([file.buffer], { type: file.mimetype }),
+    file.originalname
+  );
+  formData.append("upload_preset", uploadPreset);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const payload = await response.json();
+
+  if (!response.ok) {
+    console.error("Cloudinary upload failed", {
+      cloudName,
+      uploadPreset,
+      status: response.status,
+      payload,
+      filename: file.originalname,
+      mimetype: file.mimetype,
+    });
+    throw new Error(payload?.error?.message || "Cloudinary upload failed");
+  }
+
+  return payload.secure_url || payload.url || "";
+}
+
 export const getProducts = async (req, res) => {
   const products = await Product.find().sort({ createdAt: -1 });
   res.json(products);
@@ -100,97 +141,109 @@ export const getProduct = async (req, res) => {
 };
 
 export const createProduct = async (req, res) => {
-  const {
-    name,
-    price,
-    description,
-    brand,
-    category,
-    collection,
-    strap,
-    movement,
-    caseSize,
-    countInStock,
-    colors,
-  } = req.body;
-  const slug = slugify(name);
+  try {
+    const {
+      name,
+      price,
+      description,
+      brand,
+      category,
+      collection,
+      strap,
+      movement,
+      caseSize,
+      countInStock,
+      colors,
+    } = req.body;
+    const slug = slugify(name);
 
-  const existing = await Product.findOne({ slug });
-  if (existing) {
-    return res.status(409).json({ message: "Product with this name already exists" });
+    const existing = await Product.findOne({ slug });
+    if (existing) {
+      return res.status(409).json({ message: "Product with this name already exists" });
+    }
+
+    const imageUrl = req.file ? await uploadImageToCloudinary(req.file) : "";
+
+    const product = new Product({
+      name,
+      slug,
+      price,
+      description,
+      brand,
+      category,
+      collection,
+      strap,
+      movement,
+      caseSize,
+      countInStock: Number(countInStock || 0),
+      colors: parseColors(colors),
+      image: imageUrl,
+    });
+
+    const created = await product.save();
+    res.status(201).json(created);
+  } catch (error) {
+    console.error("Create product failed", error);
+    res.status(500).json({ message: error.message || "Unable to create product" });
   }
-
-  const product = new Product({
-    name,
-    slug,
-    price,
-    description,
-    brand,
-    category,
-    collection,
-    strap,
-    movement,
-    caseSize,
-    countInStock: Number(countInStock || 0),
-    colors: parseColors(colors),
-    image: req.file ? `/uploads/${req.file.filename}` : "",
-  });
-
-  const created = await product.save();
-  res.status(201).json(created);
 };
 
 export const updateProduct = async (req, res) => {
-  const {
-    name,
-    price,
-    description,
-    brand,
-    category,
-    collection,
-    strap,
-    movement,
-    caseSize,
-    countInStock,
-    colors,
-  } = req.body;
+  try {
+    const {
+      name,
+      price,
+      description,
+      brand,
+      category,
+      collection,
+      strap,
+      movement,
+      caseSize,
+      countInStock,
+      colors,
+    } = req.body;
 
-  const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id);
 
-  if (!product) {
-    return res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const nextSlug = slugify(name || product.name);
+
+    const existing = await Product.findOne({
+      slug: nextSlug,
+      _id: { $ne: product._id },
+    });
+
+    if (existing) {
+      return res.status(409).json({ message: "Product with this name already exists" });
+    }
+
+    product.name = name || product.name;
+    product.slug = nextSlug;
+    product.price = price ?? product.price;
+    product.description = description ?? product.description;
+    product.brand = brand ?? product.brand;
+    product.category = category ?? product.category;
+    product.collection = collection ?? product.collection;
+    product.strap = strap ?? product.strap;
+    product.movement = movement ?? product.movement;
+    product.caseSize = caseSize ?? product.caseSize;
+    product.countInStock = Number(countInStock ?? product.countInStock ?? 0);
+    product.colors = colors ? parseColors(colors) : product.colors;
+
+    if (req.file) {
+      product.image = await uploadImageToCloudinary(req.file);
+    }
+
+    const updated = await product.save();
+    res.json(updated);
+  } catch (error) {
+    console.error("Update product failed", error);
+    res.status(500).json({ message: error.message || "Unable to update product" });
   }
-
-  const nextSlug = slugify(name || product.name);
-
-  const existing = await Product.findOne({
-    slug: nextSlug,
-    _id: { $ne: product._id },
-  });
-
-  if (existing) {
-    return res.status(409).json({ message: "Product with this name already exists" });
-  }
-
-  product.name = name || product.name;
-  product.slug = nextSlug;
-  product.price = price ?? product.price;
-  product.description = description ?? product.description;
-  product.brand = brand ?? product.brand;
-  product.category = category ?? product.category;
-  product.collection = collection ?? product.collection;
-  product.strap = strap ?? product.strap;
-  product.movement = movement ?? product.movement;
-  product.caseSize = caseSize ?? product.caseSize;
-  product.countInStock = Number(countInStock ?? product.countInStock ?? 0);
-  product.colors = colors ? parseColors(colors) : product.colors;
-
-  if (req.file) {
-    product.image = `/uploads/${req.file.filename}`;
-  }
-
-  const updated = await product.save();
-  res.json(updated);
 };
 
 export const deleteProduct = async (req, res) => {
