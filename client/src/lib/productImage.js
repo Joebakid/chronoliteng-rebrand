@@ -1,9 +1,24 @@
 import { ASSET_BASE_URL } from "@/lib/api";
 
-export function resolveProductImage(product) {
-  if (!product?.image) return "";
+export function resolveImageSrc(src) {
+  if (!src) return "";
+  return src.startsWith("http") ? src : `${ASSET_BASE_URL}${src}`;
+}
 
-  return product.image.startsWith("http")
-    ? product.image
-    : `${ASSET_BASE_URL}${product.image}`;
+export function resolveProductImage(product) {
+  const primaryImage =
+    Array.isArray(product?.images) && product.images.length
+      ? product.images[0]
+      : product?.image;
+  return resolveImageSrc(primaryImage);
+}
+
+export function resolveProductImages(product) {
+  const sources =
+    Array.isArray(product?.images) && product.images.length
+      ? product.images
+      : product?.image
+      ? [product.image]
+      : [];
+  return sources.map(resolveImageSrc).filter(Boolean);
 }

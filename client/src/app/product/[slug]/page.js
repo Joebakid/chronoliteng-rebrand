@@ -1,8 +1,9 @@
 import AddToCartButton from "@/components/AddToCartButton";
 import BackHomeButton from "@/components/BackHomeButton";
+import ProductGallery from "@/components/ProductGallery";
 import { getProduct } from "@/lib/api";
 import { resolveColorSwatch } from "@/lib/colorSwatch";
-import { resolveProductImage } from "@/lib/productImage";
+import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
 
 async function getProductBySlug(slug) {
   try {
@@ -55,11 +56,12 @@ export default async function ProductPage({ params }) {
       </div>
 
       <div className="grid flex-1 gap-6 rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] md:grid-cols-[1fr_0.95fr] md:p-6">
-        <div className="flex rounded-[1.35rem] bg-[var(--card-media)] p-4 sm:p-6">
-          <img
-            src={resolveProductImage(product)}
-            alt={product.name}
-            className="mx-auto aspect-square w-full max-w-xl self-center object-contain"
+        <div className="flex h-[320px] w-[320px] min-w-[320px] items-center justify-center rounded-[1.35rem] bg-[var(--card-media)] p-4 sm:p-6">
+          <ProductGallery
+            imageUrls={resolveProductImages(product)}
+            fallbackUrl={resolveProductImage(product)}
+            className="h-full w-full"
+            colorIndicators={(product.colors || []).map(resolveColorSwatch)}
           />
         </div>
 

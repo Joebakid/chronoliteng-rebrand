@@ -154,6 +154,8 @@ export const createProduct = async (req, res) => {
       caseSize,
       countInStock,
       colors,
+      dialColor,
+      strapColor,
     } = req.body;
     const slug = slugify(name);
 
@@ -162,7 +164,13 @@ export const createProduct = async (req, res) => {
       return res.status(409).json({ message: "Product with this name already exists" });
     }
 
-    const imageUrl = req.file ? await uploadImageToCloudinary(req.file) : "";
+    const uploadedImages = [];
+    if (req.files?.length) {
+      for (const file of req.files) {
+        const url = await uploadImageToCloudinary(file);
+        if (url) uploadedImages.push(url);
+      }
+    }
 
     const product = new Product({
       name,
@@ -173,11 +181,14 @@ export const createProduct = async (req, res) => {
       category,
       collection,
       strap,
+      strapColor,
       movement,
       caseSize,
       countInStock: Number(countInStock || 0),
       colors: parseColors(colors),
-      image: imageUrl,
+      image: uploadedImages[0] || "",
+      images: uploadedImages,
+      dialColor,
     });
 
     const created = await product.save();
@@ -202,6 +213,8 @@ export const updateProduct = async (req, res) => {
       caseSize,
       countInStock,
       colors,
+      dialColor,
+      strapColor,
     } = req.body;
 
     const product = await Product.findById(req.params.id);
@@ -229,13 +242,23 @@ export const updateProduct = async (req, res) => {
     product.category = category ?? product.category;
     product.collection = collection ?? product.collection;
     product.strap = strap ?? product.strap;
+    product.strapColor = strapColor ?? product.strapColor;
     product.movement = movement ?? product.movement;
     product.caseSize = caseSize ?? product.caseSize;
     product.countInStock = Number(countInStock ?? product.countInStock ?? 0);
     product.colors = colors ? parseColors(colors) : product.colors;
+    product.dialColor = dialColor ?? product.dialColor;
 
-    if (req.file) {
-      product.image = await uploadImageToCloudinary(req.file);
+    if (req.files?.length) {
+      const newImages = [];
+      for (const file of req.files) {
+        const url = await uploadImageToCloudinary(file);
+        if (url) newImages.push(url);
+      }
+      if (newImages.length) {
+        product.images = newImages;
+        product.image = newImages[0];
+      }
     }
 
     const updated = await product.save();

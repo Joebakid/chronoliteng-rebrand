@@ -18,8 +18,8 @@ router.get("/", getProducts);
 router.get("/categories", getProductCategories);
 router.get("/analytics/overview", protect, adminOnly, getProductAnalytics);
 router.get("/:slug", getProduct);
-router.post("/", protect, adminOnly, upload.single("image"), createProduct);
-router.put("/:id", protect, adminOnly, upload.single("image"), updateProduct);
+router.post("/", protect, adminOnly, upload.array("images", 6), createProduct);
+router.put("/:id", protect, adminOnly, upload.array("images", 6), updateProduct);
 router.delete("/:id", protect, adminOnly, deleteProduct);
 
 export default router;

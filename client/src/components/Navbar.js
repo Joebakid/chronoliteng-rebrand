@@ -83,7 +83,7 @@ export default function Navbar() {
                 onClick={() => setMenuOpen(false)}
                 className="inline-flex shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] sm:px-4 sm:text-[0.72rem]"
               >
-                <span className="xl:hidden">{user.isAdmin ? "Admin" : "Profile"}</span>
+                <span className="xl:hidden">{user.isAdmin ? "Dashboard" : "Profile"}</span>
                 <span className="hidden xl:inline">{user.isAdmin ? "Dashboard" : user.name}</span>
               </Link>
               <button

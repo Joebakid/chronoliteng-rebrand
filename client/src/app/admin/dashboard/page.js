@@ -10,8 +10,16 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [form, setForm] = useState({
     name: "", price: "", description: "", category: "",
-    collection: "", caseSize: "", movement: "", strap: "", colors: "", image: null,
+    collection: "", caseSize: "", movement: "", strap: "", colors: "",
+    strapColor: "", dialColor: "", images: [],
   });
+  const [imagePreviews, setImagePreviews] = useState([]);
+
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(URL.revokeObjectURL);
+    };
+  }, [imagePreviews]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [status, setStatus] = useState({ type: "", message: "" });
@@ -32,8 +40,10 @@ export default function AdminDashboard() {
   const resetForm = () => {
     setForm({
       name: "", price: "", description: "", category: "",
-      collection: "", caseSize: "", movement: "", strap: "", colors: "", image: null,
+      collection: "", caseSize: "", movement: "", strap: "", colors: "",
+      strapColor: "", dialColor: "", images: [],
     });
+    setImagePreviews([]);
     setEditingId("");
   };
 
@@ -75,7 +85,18 @@ export default function AdminDashboard() {
     setLoading(true);
     setStatus({ type: "", message: "" });
     const formData = new FormData();
-    Object.entries(form).forEach(([k, v]) => v && formData.append(k, v));
+    Object.entries(form).forEach(([key, value]) => {
+      if (!value) return;
+      if (key === "images" && Array.isArray(value)) {
+        value.forEach((file) => {
+          if (file) {
+            formData.append("images", file);
+          }
+        });
+        return;
+      }
+      formData.append(key, value);
+    });
     try {
       await apiFetch(isEditing ? `/products/${editingId}` : "/products", {
         method: isEditing ? "PUT" : "POST",
@@ -112,7 +133,9 @@ export default function AdminDashboard() {
       movement: product.movement || "",
       strap: product.strap || "",
       colors: Array.isArray(product.colors) ? product.colors.join(", ") : "",
-      image: null,
+      strapColor: product.strapColor || "",
+      dialColor: product.dialColor || "",
+      images: [],
     });
     setStatus({ type: "", message: "" });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -145,6 +168,29 @@ export default function AdminDashboard() {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(value));
+  const copyField = (label, key, props = {}) => (
+    <div className="grid gap-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">{label}</label>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(form[key] || "");
+          }}
+          className="text-[0.56rem] uppercase tracking-[0.3em] text-[var(--muted)] transition hover:text-[var(--foreground)]"
+        >
+          Copy
+        </button>
+      </div>
+      <input
+        value={form[key] || ""}
+        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+        {...props}
+      />
+    </div>
+  );
+
   const field = (label, key, props = {}) => (
     <div key={key} className="grid gap-1.5">
       <label className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">{label}</label>
@@ -226,20 +272,44 @@ export default function AdminDashboard() {
             </div>
 
             {field("Strap", "strap", { placeholder: "Italian leather" })}
-            {field("Colours", "colors", { placeholder: "red, white, steel" })}
+            {field("Strap color", "strapColor", { placeholder: "Brown" })}
+            {field("Dial color", "dialColor", { placeholder: "Black" })}
+            {copyField("Colours", "colors", { placeholder: "red, white, steel" })}
 
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">Image</label>
-              <input
+              <label className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">
+                Images
+              </label>
+            <input
                 type="file"
+                multiple
                 required={!isEditing}
                 className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--muted)] file:mr-3 file:rounded-full file:border-0 file:bg-[var(--foreground)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[var(--surface-strong)]"
-                onChange={(e) => setForm({ ...form, image: e.target.files[0] })}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setForm({ ...form, images: files });
+                  setImagePreviews((prev) => {
+                    prev.forEach(URL.revokeObjectURL);
+                    return files.map((file) => URL.createObjectURL(file));
+                  });
+                }}
               />
               {isEditing && (
                 <p className="text-xs text-[var(--muted)]">
-                  Leave this empty to keep the current product image.
+                  Leave this empty to keep the current product photos.
                 </p>
+              )}
+              {imagePreviews.length > 0 && (
+                <div className="mt-2 flex gap-2">
+                  {imagePreviews.map((src, index) => (
+                    <img
+                      key={index}
+                      src={src}
+                      alt={`Preview ${index + 1}`}
+                      className="h-12 w-12 rounded-xl object-cover"
+                    />
+                  ))}
+                </div>
               )}
             </div>
 

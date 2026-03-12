@@ -18,6 +18,7 @@ export default function AuthForm({ mode }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
 
   const isRegister = mode === "register";
 
@@ -25,14 +26,20 @@ export default function AuthForm({ mode }) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setInfoMessage("");
 
     try {
-      const data = isRegister
-        ? await registerUser(form)
-        : await loginUser({
-            email: form.email,
-            password: form.password,
-          });
+      if (isRegister) {
+        const data = await registerUser(form);
+        setInfoMessage(data?.message || "Check your email for confirmation.");
+        setForm({ name: "", email: "", password: "" });
+        return;
+      }
+
+      const data = await loginUser({
+        email: form.email,
+        password: form.password,
+      });
 
       if (!data?.token || !data?.user) {
         throw new Error(data?.message || "Authentication failed");
@@ -70,6 +77,11 @@ export default function AuthForm({ mode }) {
       {error && (
         <div className="mt-6 rounded-2xl border border-[rgba(161,69,59,0.2)] bg-[rgba(161,69,59,0.08)] p-3 text-sm text-[var(--danger)]">
           {error}
+        </div>
+      )}
+      {infoMessage && (
+        <div className="mt-4 rounded-2xl border border-[rgba(8,112,152,0.2)] bg-[rgba(8,112,152,0.08)] p-3 text-sm text-[var(--accent)]">
+          {infoMessage}
         </div>
       )}
 

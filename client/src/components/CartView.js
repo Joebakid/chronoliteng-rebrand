@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
@@ -17,6 +17,8 @@ function formatPrice(amount) {
   }).format(amount);
 }
 
+const PAYSTACK_PUBLIC_KEY = "pk_test_fc079009a477f39f70fc860fbef3443c2cfbb14c";
+
 export default function CartView() {
   const router = useRouter();
   const {
@@ -29,6 +31,54 @@ export default function CartView() {
     clearCart,
   } = useAppContext();
   const [checkoutError, setCheckoutError] = useState("");
+  const [paystackError, setPaystackError] = useState("");
+  const [paystackLoading, setPaystackLoading] = useState(false);
+  const paystackLoadedRef = useRef(false);
+
+  const loadPaystackScript = () => {
+    if (paystackLoadedRef.current) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://js.paystack.co/v1/inline.js";
+      script.onload = () => {
+        paystackLoadedRef.current = true;
+        resolve();
+      };
+      script.onerror = () => reject(new Error("Unable to load Paystack"));
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePaystack = async () => {
+    setPaystackError("");
+    if (!user) {
+      router.push("/account/sign-in?next=/cart");
+      return;
+    }
+
+    try {
+      setPaystackLoading(true);
+      await loadPaystackScript();
+      const handler = window.PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: user.email,
+        amount: Math.round(cartTotal * 100),
+        currency: "NGN",
+        ref: `Chronolite_${Date.now()}`,
+        onClose: () => setPaystackLoading(false),
+        callback: async ({ reference }) => {
+          setPaystackLoading(false);
+          await handleCheckout();
+        },
+      });
+      handler.openIframe();
+    } catch (error) {
+      setPaystackLoading(false);
+      setPaystackError(error.message || "Unable to load Paystack right now.");
+    }
+  };
 
   async function handleCheckout() {
     setCheckoutError("");
@@ -59,6 +109,12 @@ export default function CartView() {
       setCheckoutError(error.message || "Unable to complete checkout right now.");
     }
   }
+
+  useEffect(() => {
+    return () => {
+      window.PaystackPop?.closeIframe();
+    };
+  }, []);
 
   if (cartItems.length === 0) {
     return (
@@ -176,6 +232,17 @@ export default function CartView() {
           >
             Proceed to checkout
           </button>
+          <button
+            type="button"
+            onClick={handlePaystack}
+            disabled={paystackLoading}
+            className="w-full rounded-full border border-[var(--border)] px-6 py-3 text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)]"
+          >
+            {paystackLoading ? "Loading Paystack…" : "Pay with Paystack (Test)"}
+          </button>
+          {paystackError && (
+            <p className="mt-1 text-xs text-[var(--danger)]">{paystackError}</p>
+          )}
           <button
             type="button"
             onClick={clearCart}
