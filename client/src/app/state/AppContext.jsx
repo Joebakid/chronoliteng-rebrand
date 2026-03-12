@@ -11,32 +11,20 @@ const AppContext = createContext(null);
 const STORAGE_KEY = "chronolite-cart";
 const THEME_KEY = "chronolite-theme";
 
-function getInitialTheme() {
-  if (typeof window === "undefined") return "light";
-
-  const appliedTheme = document.documentElement.dataset.theme;
-  if (appliedTheme === "light" || appliedTheme === "dark") {
-    return appliedTheme;
-  }
-
-  try {
-    const savedTheme = window.localStorage.getItem(THEME_KEY);
-    if (savedTheme === "light" || savedTheme === "dark") {
-      return savedTheme;
-    }
-  } catch {}
-
-  return "light";
-}
-
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [cartItems, setCartItems] = useState([]);
-  const [theme, setTheme] = useState(getInitialTheme);
+  const [theme, setTheme] = useState("light");
+
+  // Sync theme from what the inline script already applied to <html>
+  useEffect(() => {
+    const applied = document.documentElement.dataset.theme;
+    if (applied === "dark" || applied === "light") {
+      setTheme(applied);
+    }
+  }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     try {
       const savedSession = getStoredUserSession();
       if (savedSession?.user) {
@@ -51,20 +39,13 @@ export function AppProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
   }, [cartItems]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     if (user) {
       const existing = getStoredUserSession();
-      setStoredUserSession({
-        ...(existing || {}),
-        user,
-      });
+      setStoredUserSession({ ...(existing || {}), user });
       return;
     }
 
@@ -77,8 +58,6 @@ export function AppProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
@@ -86,7 +65,6 @@ export function AppProvider({ children }) {
   function addToCart(product) {
     setCartItems((currentItems) => {
       const existingItem = currentItems.find((item) => item.slug === product.slug);
-
       if (existingItem) {
         return currentItems.map((item) =>
           item.slug === product.slug
@@ -94,7 +72,6 @@ export function AppProvider({ children }) {
             : item
         );
       }
-
       return [...currentItems, { ...product, quantity: 1 }];
     });
   }
@@ -110,7 +87,6 @@ export function AppProvider({ children }) {
       removeFromCart(slug);
       return;
     }
-
     setCartItems((currentItems) =>
       currentItems.map((item) =>
         item.slug === slug ? { ...item, quantity: nextQuantity } : item
@@ -123,7 +99,7 @@ export function AppProvider({ children }) {
   }
 
   function toggleTheme() {
-    setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
   }
 
   function signIn(session) {
