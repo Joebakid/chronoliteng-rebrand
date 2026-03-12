@@ -1,3 +1,4 @@
+cat > ~/Desktop/chronoliteng/server/server.js << 'EOF'
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -43,3 +44,4 @@ async function startServer() {
 }
 
 startServer();
+EOF
