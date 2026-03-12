@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --font-body: "Courier New", "Liberation Mono", "Nimbus Mono PS", monospace;
-  --font-display: Rockwell, "Roboto Slab", "Courier New", Georgia, serif;
+  --font-body: "IBM Plex Mono", "Courier New", monospace;
+  --font-display: "Libre Baskerville", Georgia, serif;
   --background: #f3efe8;
   --background-strong: #ebe3d5;
   --surface: rgba(255, 255, 255, 0.82);
@@ -63,7 +63,7 @@ html[data-theme="dark"] {
 
 body {
   min-height: 100vh;
-  font-family: var(--font-body), "Courier New", monospace;
+  font-family: var(--font-body);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), transparent 30%),
     radial-gradient(circle at bottom right, rgba(227, 210, 186, 0.5), transparent 28%),
@@ -109,7 +109,7 @@ textarea {
 }
 
 .font-display {
-  font-family: var(--font-display), Georgia, serif;
+  font-family: var(--font-display);
 }
 
 .nav-shell {
@@ -117,7 +117,6 @@ textarea {
     0 0 0 1px var(--border),
     0 12px 40px var(--nav-glow);
 }
-
 
 @media (min-width: 1024px) {
   .site-frame {

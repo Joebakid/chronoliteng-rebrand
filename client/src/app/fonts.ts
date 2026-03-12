@@ -1,13 +1,16 @@
-import { Roboto_Mono, Roboto_Slab } from "next/font/google";
+import { Libre_Baskerville, IBM_Plex_Mono } from "next/font/google";
 
-export const bodyFont = Roboto_Mono({
+export const displayFont = Libre_Baskerville({
   subsets: ["latin"],
-  variable: "--font-body",
+  weight: ["400", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-display",
   display: "swap",
 });
 
-export const displayFont = Roboto_Slab({
+export const bodyFont = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-display",
+  weight: ["400", "500"],
+  variable: "--font-body",
   display: "swap",
 });
