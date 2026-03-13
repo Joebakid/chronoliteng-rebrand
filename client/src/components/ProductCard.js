@@ -14,8 +14,11 @@ export default function ProductCard({ product }) {
     addToCart(product);
   }
 
+  // Fallback for missing slug to avoid /product/undefined
+  const productPath = product.slug || product.id;
+
   return (
-    <Link href={`/product/${product.slug}`} className="group block">
+    <Link href={`/product/${productPath}`} className="group block">
       <article className="flex h-full flex-col overflow-hidden rounded-[1.15rem] border border-[var(--border)] bg-[var(--card)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(30,27,24,0.08)]">
         <div className="relative aspect-[1.28] w-full overflow-hidden bg-[var(--card-media)]">
           <img
@@ -40,35 +43,35 @@ export default function ProductCard({ product }) {
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-[var(--border)] pt-2 text-[0.66rem] text-[var(--muted)] sm:gap-1 sm:pt-1 sm:text-[0.5rem]">
-            <p className="truncate">{product.caseSize}</p>
-            <p className="truncate text-right">{product.movement}</p>
+            <p className="truncate">{product.caseSize || "40mm"}</p>
+            <p className="truncate text-right">{product.movement || "Quartz"}</p>
           </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
-            {product.colors?.map((color, i) => (
-              <span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full border border-black/10"
-                style={{ backgroundColor: resolveColorSwatch(color) }}
-              />
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
+              {product.colors?.map((color, i) => (
+                <span
+                  key={i}
+                  className="h-1.5 w-1.5 rounded-full border border-black/10"
+                  style={{ backgroundColor: resolveColorSwatch(color) }}
+                />
+              ))}
+            </div>
+            <p className="text-[0.8rem] font-semibold text-[var(--price)] sm:text-[0.58rem]">
+              {new Intl.NumberFormat("en-NG", {
+                style: "currency",
+                currency: "NGN",
+                maximumFractionDigits: 0,
+              }).format(product.price)}
+            </p>
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[var(--foreground)] transition hover:border-[var(--foreground)] hover:text-[var(--foreground)]"
+            >
+              Add to cart
+            </button>
           </div>
-          <p className="text-[0.8rem] font-semibold text-[var(--price)] sm:text-[0.58rem]">
-            {new Intl.NumberFormat("en-NG", {
-              style: "currency",
-              currency: "NGN",
-              maximumFractionDigits: 0,
-            }).format(product.price)}
-          </p>
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            className="rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[var(--foreground)] transition hover:border-[var(--foreground)] hover:text-[var(--foreground)]"
-          >
-            Add to cart
-          </button>
-        </div>
         </div>
       </article>
     </Link>

@@ -2,19 +2,13 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { loginUser, registerUser } from "@/lib/api";
 import { useAppContext } from "@/app/state/AppContext";
-import { setAdminToken } from "@/lib/adminAuth";
 
 export default function AuthForm({ mode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn } = useAppContext();
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const { signUp, signIn } = useAppContext();
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,24 +24,22 @@ export default function AuthForm({ mode }) {
 
     try {
       if (isRegister) {
-        const data = await registerUser(form);
+        const data = await signUp({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+        });
         setInfoMessage(data?.message || "Check your email for confirmation.");
         setForm({ name: "", email: "", password: "" });
         return;
       }
 
-      const data = await loginUser({
+      const firebaseUser = await signIn({
         email: form.email,
         password: form.password,
       });
 
-      if (!data?.token || !data?.user) {
-        throw new Error(data?.message || "Authentication failed");
-      }
-
-      signIn(data);
-      if (data.user.isAdmin) {
-        setAdminToken(data.token);
+      if (firebaseUser.isAdmin) {
         router.push("/admin/dashboard");
         return;
       }
@@ -140,16 +132,13 @@ export default function AuthForm({ mode }) {
         </div>
 
         <button
+          type="submit"
           disabled={loading}
           className="w-full rounded-full bg-[var(--foreground)] py-3 font-medium text-[var(--surface-strong)] transition hover:opacity-90"
         >
           {loading
-            ? isRegister
-              ? "Creating account..."
-              : "Signing in..."
-            : isRegister
-              ? "Create account"
-              : "Sign in"}
+            ? isRegister ? "Creating account..." : "Signing in..."
+            : isRegister ? "Create account" : "Sign in"}
         </button>
       </form>
     </div>

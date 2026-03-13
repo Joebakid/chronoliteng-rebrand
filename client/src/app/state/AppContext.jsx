@@ -2,10 +2,14 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
-  clearStoredUserSession,
-  getStoredUserSession,
-  setStoredUserSession,
-} from "@/lib/userAuth";
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  sendEmailVerification,
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 const AppContext = createContext(null);
 const STORAGE_KEY = "chronolite-cart";
@@ -15,52 +19,79 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [theme, setTheme] = useState("light");
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // Sync theme from what the inline script already applied to <html>
+  // Sync theme from inline script
   useEffect(() => {
     const applied = document.documentElement.dataset.theme;
-    if (applied === "dark" || applied === "light") {
-      setTheme(applied);
-    }
+    if (applied === "dark" || applied === "light") setTheme(applied);
   }, []);
 
+  // Firebase auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && firebaseUser.emailVerified) {
+        const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+        const profile = snap.exists() ? snap.data() : {};
+        setUser({
+          id: firebaseUser.uid,
+          name: profile.name || firebaseUser.displayName || "",
+          email: firebaseUser.email,
+          isAdmin: profile.isAdmin || false,
+        });
+      } else {
+        setUser(null);
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Load cart
   useEffect(() => {
     try {
-      const savedSession = getStoredUserSession();
-      if (savedSession?.user) {
-        setUser(savedSession.user);
-      }
-
       const savedCart = window.localStorage.getItem(STORAGE_KEY);
-      if (savedCart) {
-        setCartItems(JSON.parse(savedCart));
-      }
+      if (savedCart) setCartItems(JSON.parse(savedCart));
     } catch {}
   }, []);
 
+  // Save cart
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
   }, [cartItems]);
 
-  useEffect(() => {
-    if (user) {
-      const existing = getStoredUserSession();
-      setStoredUserSession({ ...(existing || {}), user });
-      return;
-    }
-
-    const existing = getStoredUserSession();
-    if (existing?.token) {
-      setStoredUserSession({ token: existing.token, user: null });
-    } else {
-      clearStoredUserSession();
-    }
-  }, [user]);
-
+  // Sync theme
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  async function signUp({ name, email, password }) {
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, "users", credential.user.uid), {
+      name,
+      email,
+      isAdmin: false,
+      createdAt: new Date().toISOString(),
+    });
+    await sendEmailVerification(credential.user);
+    await firebaseSignOut(auth);
+    return { message: "Registration successful. Check your email to confirm before logging in." };
+  }
+
+  async function signIn({ email, password }) {
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    if (!credential.user.emailVerified) {
+      await firebaseSignOut(auth);
+      throw new Error("Verify your email address before logging in.");
+    }
+    return credential.user;
+  }
+
+  async function signOut() {
+    await firebaseSignOut(auth);
+    setUser(null);
+  }
 
   function addToCart(product) {
     setCartItems((currentItems) => {
@@ -83,10 +114,7 @@ export function AppProvider({ children }) {
   }
 
   function updateCartQuantity(slug, nextQuantity) {
-    if (nextQuantity <= 0) {
-      removeFromCart(slug);
-      return;
-    }
+    if (nextQuantity <= 0) { removeFromCart(slug); return; }
     setCartItems((currentItems) =>
       currentItems.map((item) =>
         item.slug === slug ? { ...item, quantity: nextQuantity } : item
@@ -94,34 +122,19 @@ export function AppProvider({ children }) {
     );
   }
 
-  function clearCart() {
-    setCartItems([]);
-  }
-
-  function toggleTheme() {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
-  }
-
-  function signIn(session) {
-    setUser(session.user);
-    setStoredUserSession(session);
-  }
-
-  function signOut() {
-    setUser(null);
-    clearStoredUserSession();
-  }
+  function clearCart() { setCartItems([]); }
+  function toggleTheme() { setTheme((t) => t === "dark" ? "light" : "dark"); }
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartItems.reduce(
-    (sum, item) => sum + Number(item.price || 0) * item.quantity,
-    0
+    (sum, item) => sum + Number(item.price || 0) * item.quantity, 0
   );
 
   const value = useMemo(
     () => ({
       user,
       setUser,
+      authLoading,
       cartItems,
       addToCart,
       removeFromCart,
@@ -132,10 +145,11 @@ export function AppProvider({ children }) {
       theme,
       setTheme,
       toggleTheme,
+      signUp,
       signIn,
       signOut,
     }),
-    [user, cartItems, cartCount, cartTotal, theme]
+    [user, authLoading, cartItems, cartCount, cartTotal, theme]
   );
 
   return (
