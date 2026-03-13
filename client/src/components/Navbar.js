@@ -23,13 +23,14 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 pt-4">
-      <nav className="nav-shell site-frame rounded-[1.4rem] border border-[var(--border)] bg-[var(--nav)] px-4 py-3 backdrop-blur sm:px-6 xl:flex xl:items-center xl:justify-between xl:px-8">
+      <nav className="nav-shell site-frame rounded-[1.4rem] bg-[var(--nav)] px-4 py-3 backdrop-blur sm:px-6 xl:flex xl:items-center xl:justify-between xl:px-8">
         <div className="flex items-center justify-between gap-3 xl:min-w-0">
           <button
             onClick={() => handleNavigate("/")}
-            className="flex min-w-0 items-center gap-3 text-left"
+            className="flex min-w-0 rounded-xl p-0.5 items-center gap-3 text-left transition-opacity hover:opacity-80"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--inverse-bg)] text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-[var(--inverse-fg)]">
+            {/* Logo: Clean minimalist "C" with no border or background circle */}
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center text-[1.3rem] font-bold text-[var(--foreground)]">
               C
             </span>
 
@@ -43,22 +44,24 @@ export default function Navbar() {
             </span>
           </button>
 
+          {/* Mobile Menu Toggle */}
           <button
             type="button"
             aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((current) => !current)}
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] xl:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] text-[var(--foreground)] xl:hidden"
           >
-            <span className="flex flex-col gap-1">
-              <span className={`block h-0.5 w-4 bg-current transition ${menuOpen ? "translate-y-1.5 rotate-45" : ""}`} />
-              <span className={`block h-0.5 w-4 bg-current transition ${menuOpen ? "opacity-0" : ""}`} />
-              <span className={`block h-0.5 w-4 bg-current transition ${menuOpen ? "-translate-y-1.5 -rotate-45" : ""}`} />
+            <span className="flex flex-col gap-1 rounded-xl ">
+              <span className={`block h-0.5 w-4 bg-current transition-transform duration-300 ${menuOpen ? "translate-y-1.5 rotate-45" : ""}`} />
+              <span className={`block h-0.5 w-4 bg-current transition-opacity duration-300 ${menuOpen ? "opacity-0" : ""}`} />
+              <span className={`block h-0.5 w-4 bg-current transition-transform duration-300 ${menuOpen ? "-translate-y-1.5 -rotate-45" : ""}`} />
             </span>
           </button>
         </div>
 
-        <div className={`${menuOpen ? "mt-3 flex" : "hidden"} flex-col gap-2 xl:mt-0 xl:flex xl:flex-row xl:items-center xl:justify-end xl:gap-3`}>
+        {/* Nav Links & Actions */}
+        <div className={`${menuOpen ? "mt-4 flex" : "hidden"} flex-col gap-3 xl:mt-0 xl:flex xl:flex-row xl:items-center xl:justify-end xl:gap-3`}>
           <span className="hidden rounded-full bg-[var(--background-strong)] px-3 py-1.5 text-[0.68rem] font-medium uppercase tracking-[0.16em] text-[var(--muted)] xl:inline-flex">
             Curated pieces
           </span>
@@ -68,10 +71,11 @@ export default function Navbar() {
           <Link
             href="/cart"
             onClick={() => setMenuOpen(false)}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)]"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] transition-colors hover:bg-[var(--background-strong)]"
           >
             Cart
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--inverse-bg)] px-1.5 text-[0.64rem] text-[var(--inverse-fg)]">
+            {/* Cart Bubble: Uses inverse variables for high contrast against nav */}
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[gray] px-1.5 text-[0.64rem] font-bold text-[var(--inverse-fg)]">
               {cartCount}
             </span>
           </Link>
@@ -81,14 +85,14 @@ export default function Navbar() {
               <Link
                 href={user.isAdmin ? "/admin/dashboard" : "/account/profile"}
                 onClick={() => setMenuOpen(false)}
-                className="inline-flex shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] sm:px-4 sm:text-[0.72rem]"
+                className="inline-flex shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] transition-colors hover:bg-[var(--background-strong)]"
               >
-                <span className="xl:hidden">{user.isAdmin ? "Dashboard" : "Profile"}</span>
-                <span className="hidden xl:inline">{user.isAdmin ? "Dashboard" : user.name}</span>
+                {user.isAdmin ? "Dashboard" : "Profile"}
               </Link>
               <button
                 onClick={handleSignOut}
-                className="shrink-0 rounded-full border border-[var(--border)] bg-[var(--inverse-bg)] px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[var(--inverse-fg)] transition hover:opacity-88 sm:px-4 sm:text-[0.74rem]"
+                /* Use inverse classes to ensure high contrast in Light Mode */
+                className="shrink-0 rounded-full border border-[var(--border)] bg-[var(--inverse-bg)] px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--inverse-fg)] transition-opacity hover:opacity-90"
               >
                 Sign out
               </button>
@@ -98,14 +102,15 @@ export default function Navbar() {
               <Link
                 href="/account/create-account"
                 onClick={() => setMenuOpen(false)}
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] sm:px-4 sm:text-[0.74rem]"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] transition-colors hover:bg-[var(--background-strong)]"
               >
                 Create account
               </Link>
               <Link
                 href="/account/sign-in"
                 onClick={() => setMenuOpen(false)}
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--inverse-bg)] px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-[var(--inverse-fg)] transition hover:opacity-88 sm:px-4 sm:text-[0.74rem]"
+                /* Applied Inverse Logic here to prevent the "invisible button" bug */
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--inverse-bg)] px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--inverse-fg)] transition-opacity hover:opacity-90"
               >
                 Sign in
               </Link>

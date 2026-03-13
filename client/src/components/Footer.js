@@ -13,22 +13,23 @@ export default function Footer({
   return (
     <footer
       role="contentinfo"
-      className={`${fixedClasses} w-full border-t border-neutral-800 bg-black/95 supports-[backdrop-filter]:bg-black/80 backdrop-blur ${className}`}
+      /* FIXED: Removed bg-black/95 and hardcoded neutral borders */
+      className={`${fixedClasses} w-full border-t border-[var(--border)] bg-[var(--nav)] backdrop-blur transition-colors duration-300 ${className}`}
     >
       <div className="mx-auto max-w-7xl px-4">
-        <div className="grid grid-cols-1 gap-3 py-3 text-xs text-gray-300 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+        <div className="grid grid-cols-1 gap-3 py-3 text-xs sm:grid-cols-[auto_1fr_auto] sm:items-center">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-white [font-family:var(--font-display)]">
+            <span className="font-semibold text-[var(--foreground)] [font-family:var(--font-display)]">
               chronoliteng
             </span>
-            <span className="font-semibold lowercase [font-family:var(--font-display)]">
+            <span className="font-semibold lowercase text-[var(--foreground)] [font-family:var(--font-display)]">
               © {new Date().getFullYear()}
             </span>
-            <p className="opacity-70">All Rights Reserved</p>
+            <p className="text-[var(--muted)] opacity-70">All Rights Reserved</p>
           </div>
 
           <div className="hidden items-center justify-center gap-4 sm:flex">
-            <Link href="/" className="transition hover:text-white">
+            <Link href="/" className="text-[var(--muted)] transition hover:text-[var(--foreground)]">
               Store
             </Link>
           </div>
@@ -38,7 +39,7 @@ export default function Footer({
               href={`https://wa.me/${digits}`}
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-700/60 bg-neutral-900/40 px-3 py-1.5 text-[11px] text-gray-300 transition hover:border-neutral-600 hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-700 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-1.5 text-[11px] text-[var(--foreground)] transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] sm:w-auto"
             >
               WhatsApp
             </a>
@@ -47,13 +48,13 @@ export default function Footer({
               href="https://www.josephbawo.tech/"
               target="_blank"
               rel="noreferrer noopener"
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-700/60 bg-neutral-900/40 px-3 py-1.5 text-[11px] text-gray-300 transition hover:border-neutral-600 hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-700 sm:w-auto"
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-1.5 text-[11px] text-[var(--foreground)] transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] sm:w-auto"
             >
-              <span className="opacity-80 group-hover:opacity-100">Made by</span>
+              <span className="opacity-80 group-hover:opacity-100 text-[var(--muted)]">Made by</span>
               <span className="bg-gradient-to-r from-purple-400 to-sky-400 bg-clip-text font-semibold text-transparent">
                 Joseph Bawo
               </span>
-              <span className="opacity-60 group-hover:opacity-100">↗</span>
+              <span className="opacity-60 group-hover:opacity-100 text-[var(--foreground)]">↗</span>
             </a>
           </div>
         </div>

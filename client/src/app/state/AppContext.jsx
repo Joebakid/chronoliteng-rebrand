@@ -21,11 +21,19 @@ export function AppProvider({ children }) {
   const [theme, setTheme] = useState("light");
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Sync theme from inline script
+  // 1. Initial Theme Load
   useEffect(() => {
-    const applied = document.documentElement.dataset.theme;
-    if (applied === "dark" || applied === "light") setTheme(applied);
+    const savedTheme = window.localStorage.getItem(THEME_KEY);
+    const initialTheme = savedTheme || "light";
+    setTheme(initialTheme);
+    document.documentElement.setAttribute("data-theme", initialTheme);
   }, []);
+
+  // 2. Sync Theme Changes to DOM
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   // Firebase auth state listener
   useEffect(() => {
@@ -60,12 +68,6 @@ export function AppProvider({ children }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
   }, [cartItems]);
 
-  // Sync theme
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
   async function signUp({ name, email, password }) {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await setDoc(doc(db, "users", credential.user.uid), {
@@ -85,7 +87,9 @@ export function AppProvider({ children }) {
       await firebaseSignOut(auth);
       throw new Error("Verify your email address before logging in.");
     }
-    return credential.user;
+    // Fetch full user profile to check admin status
+    const snap = await getDoc(doc(db, "users", credential.user.uid));
+    return { ...credential.user, isAdmin: snap.data()?.isAdmin || false };
   }
 
   async function signOut() {
@@ -123,7 +127,15 @@ export function AppProvider({ children }) {
   }
 
   function clearCart() { setCartItems([]); }
-  function toggleTheme() { setTheme((t) => t === "dark" ? "light" : "dark"); }
+  
+  // FIXED: Explicitly set the data-theme attribute on toggle
+  function toggleTheme() { 
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      return next;
+    });
+  }
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartItems.reduce(
