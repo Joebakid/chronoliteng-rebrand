@@ -3,25 +3,28 @@
 :root {
   --font-body: "IBM Plex Mono", "Courier New", monospace;
   --font-display: "Libre Baskerville", Georgia, serif;
-  --background: #f3efe8;
-  --background-strong: #ebe3d5;
-  --surface: rgba(255, 255, 255, 0.82);
-  --surface-strong: #fcfaf6;
-  --foreground: #2f2a24;
-  --muted: #8c8377;
-  --border: rgba(74, 61, 45, 0.12);
-  --accent: #b77b4b;
-  --accent-soft: #f1e2d1;
+  
+  /* LIGHT MODE - High Contrast Adjustments */
+  --background: #f7f3ed;
+  --background-strong: #efeadf;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-strong: #e9e2d5;       /* Darker beige for visible buttons */
+  --foreground: #1a1814;          /* Much darker text for readability */
+  --muted: #6b6358;               /* Darker muted text */
+  --border: rgba(26, 24, 20, 0.15); 
+  --accent: #915a2f;
+  --accent-soft: #e5d5c0;
   --danger: #a1453b;
-  --shadow: 0 22px 50px rgba(77, 63, 46, 0.08);
-  --card: #f8f2e7;
-  --card-media: #efe6d7;
-  --price: #d06f5d;
-  --nav: rgba(252, 250, 246, 0.92);
-  --nav-glow: rgba(183, 123, 75, 0.12);
-  --inverse-bg: #2f2a24;
-  --inverse-fg: #fcfaf6;
-  --theme-indicator: #2f2a24;
+  --shadow: 0 12px 34px rgba(45, 38, 28, 0.12);
+  --card: #ffffff;
+  --card-media: #f2ede4;
+  --price: #bf4d3b;
+  --nav: rgba(247, 243, 237, 0.85);
+  --nav-glow: rgba(145, 90, 47, 0.08);
+  --inverse-bg: #1a1814;          /* Inverts to dark buttons in light mode */
+  --inverse-fg: #f7f3ed;          /* Inverts to light text in light mode */
+  --theme-indicator: #1a1814;
+  
   --page-width: 1120px;
   --page-gutter: 1rem;
 }
@@ -64,10 +67,11 @@ html[data-theme="dark"] {
 body {
   min-height: 100vh;
   font-family: var(--font-body);
+  /* Fixed Gradient: Now uses variables so it switches correctly on live site */
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(227, 210, 186, 0.5), transparent 28%),
-    linear-gradient(180deg, #f7f2ea 0%, var(--background) 58%, #ece4d8 100%);
+    radial-gradient(circle at top left, var(--surface), transparent 30%),
+    radial-gradient(circle at bottom right, var(--accent-soft), transparent 28%),
+    linear-gradient(180deg, var(--background-strong) 0%, var(--background) 58%, var(--background-strong) 100%);
   color: var(--foreground);
   letter-spacing: 0.01em;
   font-size: 14px;
@@ -76,6 +80,7 @@ body {
     color 180ms ease;
 }
 
+/* Specific Dark Mode background override to keep the deep black feel */
 :root[data-theme="dark"] body {
   background:
     radial-gradient(circle at top left, rgba(215, 160, 108, 0.08), transparent 18%),
@@ -84,7 +89,7 @@ body {
 }
 
 body::selection {
-  background: rgba(31, 79, 70, 0.2);
+  background: rgba(145, 90, 47, 0.2);
 }
 
 a {
