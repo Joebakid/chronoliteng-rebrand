@@ -68,6 +68,7 @@ button, .btn {
 /* Inverse class for primary actions */
 .bg-inverse {
   background-color: var(--inverse-bg) !important;
+  /* background-color:red; */
   color: var(--inverse-fg) !important;
 }
 

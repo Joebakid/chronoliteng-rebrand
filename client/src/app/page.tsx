@@ -1,5 +1,7 @@
 import MinimalUI from "@/components/MinimalUI";
-import { getProducts } from "@/lib/api";
+import { getProducts } from "@/lib/api.server";  // ← this line is the fix
+
+export const revalidate = 30;
 
 export default async function Home() {
   let products = [];

@@ -17,7 +17,7 @@ function formatPrice(amount) {
   }).format(amount);
 }
 
-const PAYSTACK_PUBLIC_KEY = "pk_test_fc079009a477f39f70fc860fbef3443c2cfbb14c";
+const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
 
 export default function CartView() {
   const router = useRouter();
@@ -53,6 +53,8 @@ export default function CartView() {
 
   const handlePaystack = async () => {
     setPaystackError("");
+    setCheckoutError("");
+
     if (!user) {
       router.push("/account/sign-in?next=/cart");
       return;
@@ -67,10 +69,12 @@ export default function CartView() {
         amount: Math.round(cartTotal * 100),
         currency: "NGN",
         ref: `Chronolite_${Date.now()}`,
-        onClose: () => setPaystackLoading(false),
-        callback: async ({ reference }) => {
+        onClose: () => {
           setPaystackLoading(false);
-          await handleCheckout();
+        },
+        callback: ({ reference }) => {
+          setPaystackLoading(false);
+          handleCheckout();
         },
       });
       handler.openIframe();
@@ -95,13 +99,10 @@ export default function CartView() {
     }
 
     try {
-      await createOrder(
-        {
-          items: cartItems,
-          total: cartTotal,
-        },
-        token
-      );
+      await createOrder({
+        items: cartItems,
+        total: cartTotal,
+      });
       recordPurchase(user, cartItems, cartTotal);
       clearCart();
       router.push("/account/profile");
@@ -112,7 +113,7 @@ export default function CartView() {
 
   useEffect(() => {
     return () => {
-      window.PaystackPop?.closeIframe();
+      window.PaystackPop?.close?.();
     };
   }, []);
 
@@ -220,7 +221,9 @@ export default function CartView() {
           </div>
           <div className="flex items-center justify-between">
             <span>Total</span>
-            <span className="font-semibold text-[var(--price)]">{formatPrice(cartTotal)}</span>
+            <span className="font-semibold text-[var(--price)]">
+              {formatPrice(cartTotal)}
+            </span>
           </div>
         </div>
 
@@ -236,9 +239,9 @@ export default function CartView() {
             type="button"
             onClick={handlePaystack}
             disabled={paystackLoading}
-            className="w-full rounded-full border border-[var(--border)] px-6 py-3 text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)]"
+            className="w-full rounded-full border border-[var(--border)] px-6 py-3 text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] disabled:opacity-50"
           >
-            {paystackLoading ? "Loading Paystack…" : "Pay with Paystack (Test)"}
+            {paystackLoading ? "Loading Paystack…" : "Pay with Paystack"}
           </button>
           {paystackError && (
             <p className="mt-1 text-xs text-[var(--danger)]">{paystackError}</p>
