@@ -2,19 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Navbar() {
-  const router = useRouter();
   const { cartCount, user, signOut } = useAppContext();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  function handleNavigate(path) {
-    setMenuOpen(false);
-    router.push(path);
-  }
 
   function handleSignOut() {
     setMenuOpen(false);
@@ -29,8 +22,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between gap-4 xl:min-w-0">
 
           {/* LOGO */}
-          <button
-            onClick={() => handleNavigate("/")}
+          <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
             className="flex items-center gap-3 rounded-xl hover:opacity-80 transition-opacity"
           >
             {/* Monogram */}
@@ -45,10 +39,10 @@ export default function Navbar() {
               </span>
 
               <span className="hidden text-[0.65rem] uppercase tracking-[0.35em] text-[var(--muted)] sm:block">
-              Watches
+                Watches
               </span>
             </span>
-          </button>
+          </Link>
 
           {/* MOBILE MENU BUTTON */}
           <button
@@ -83,7 +77,6 @@ export default function Navbar() {
             className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.18em] transition hover:bg-[var(--background-strong)]"
           >
             Cart
-
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--inverse-bg)] px-1.5 text-[0.6rem] font-bold text-[var(--inverse-fg)]">
               {cartCount}
             </span>
