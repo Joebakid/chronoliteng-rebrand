@@ -55,9 +55,9 @@ body {
 }
 
 /* GLOBAL VISIBILITY RESET: Forces text to follow theme variables */
-h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input {
+/* h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input {
   color: var(--foreground) !important;
-}
+} */
 
 /* Specific fix for buttons with backgrounds */
 button, .btn {
