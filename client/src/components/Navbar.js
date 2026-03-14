@@ -23,19 +23,19 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 pt-4">
-      <nav className="nav-shell site-frame rounded-[1.4rem] bg-[var(--nav)] px-4 py-3 backdrop-blur sm:px-6 xl:flex xl:items-center xl:justify-between xl:px-8">
+      <nav className="nav-shell site-frame rounded-[1.4rem] bg-[gray] px-4 py-3 backdrop-blur sm:px-6 xl:flex xl:items-center xl:justify-between xl:px-8">
         <div className="flex items-center justify-between gap-3 xl:min-w-0">
           <button
             onClick={() => handleNavigate("/")}
-            className="flex min-w-0 rounded-xl p-0.5 items-center gap-3 text-left transition-opacity hover:opacity-80"
+            className="flex min-w-0 rounded-xl p-0.5 items-center gap-3 text-left  hover:opacity-80"
           >
             {/* Logo: Clean minimalist "C" with no border or background circle */}
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center text-[1.3rem] font-bold text-[var(--foreground)]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center text-[1.3rem] font-bold ">
               C
             </span>
 
             <span className="block min-w-0">
-              <span className="font-display block text-[0.96rem] font-bold leading-none text-[var(--foreground)] sm:text-[1.02rem]">
+              <span className="font-display block text-[0.96rem] font-bold leading-none  sm:text-[1.02rem]">
                 Chronolite
               </span>
               <span className="mt-1 hidden text-[0.68rem] uppercase tracking-[0.22em] text-[var(--muted)] sm:block">

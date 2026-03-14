@@ -61,8 +61,8 @@ h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input {
 
 /* Specific fix for buttons with backgrounds */
 button, .btn {
-  background-color: var(--surface-strong);
-  border: 1px solid var(--border);
+  /* background-color: var(--surface-strong); */
+  /* border: 1px solid var(--border); */
 }
 
 /* Inverse class for primary actions */
