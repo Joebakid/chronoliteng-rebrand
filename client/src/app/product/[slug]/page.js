@@ -55,8 +55,8 @@ export default async function ProductPage({ params }) {
         <BackHomeButton />
       </div>
 
-      <div className="grid flex-1 gap-6 rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] md:grid-cols-[1fr_0.95fr] md:p-6">
-        <div className="flex h-[320px] w-[320px] min-w-[320px] items-center justify-center rounded-[1.35rem] bg-[var(--card-media)] p-4 sm:p-6">
+      <div className="grid flex-1 gap-6 rounded-[2rem]     p-4 shadow-[var(--shadow)] md:grid-cols-[1fr_0.95fr] md:p-6">
+        <div className="flex h-[320px] w-[320px] min-w-[320px] items-center justify-center rounded-[1.35rem]  p-4 sm:p-6">
           <ProductGallery
             imageUrls={resolveProductImages(product)}
             fallbackUrl={resolveProductImage(product)}

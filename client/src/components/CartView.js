@@ -142,9 +142,10 @@ export default function CartView() {
         {cartItems.map((item) => (
           <article
             key={item.slug}
-            className="grid gap-4 rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] sm:grid-cols-[140px_1fr]"
+            className="grid gap-4 rounded-[1.5rem] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] sm:grid-cols-[140px_1fr]"
           >
-            <div className="relative aspect-square overflow-hidden rounded-[1rem] bg-[var(--card-media)]">
+          <div className="relative aspect-square overflow-hidden rounded-[1rem]">
+
               <img
                 src={resolveProductImage(item)}
                 alt={item.name}
