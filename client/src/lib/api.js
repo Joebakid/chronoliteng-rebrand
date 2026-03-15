@@ -9,10 +9,10 @@ import {
   orderBy,
   serverTimestamp,
   where,
+  arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// HELPER: Convert Firebase Timestamps to plain values for Next.js serialization
 const formatFirebaseDoc = (d) => {
   const data = d.data();
   return {
@@ -31,10 +31,7 @@ export async function apiFetch(endpoint, options = {}) {
   const baseUrl = process.env.NEXT_PUBLIC_API_ORIGIN || "http://localhost:5000";
   const res = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers: { "Content-Type": "application/json", ...options.headers },
   });
   const payload = await res.json();
   if (!res.ok) throw new Error(payload.message || "API request failed");
@@ -42,10 +39,7 @@ export async function apiFetch(endpoint, options = {}) {
 }
 
 export async function loginUser(credentials) {
-  return await apiFetch("/auth/login", {
-    method: "POST",
-    body: JSON.stringify(credentials),
-  });
+  return await apiFetch("/auth/login", { method: "POST", body: JSON.stringify(credentials) });
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -53,9 +47,7 @@ export async function loginUser(credentials) {
 ───────────────────────────────────────────────────────────── */
 
 export async function getProducts() {
-  const snap = await getDocs(
-    query(collection(db, "products"), orderBy("createdAt", "desc"))
-  );
+  const snap = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
   return snap.docs.map(formatFirebaseDoc);
 }
 
@@ -71,6 +63,7 @@ export async function createProduct(data) {
   const ref = await addDoc(collection(db, "products"), {
     ...data,
     slug,
+    inStock: false, // hidden until admin toggles
     createdAt: serverTimestamp(),
   });
   await fetch("/api/revalidate", { method: "POST" }).catch(() => {});
@@ -79,10 +72,7 @@ export async function createProduct(data) {
 
 export async function updateProduct(id, data) {
   const ref = doc(db, "products", id);
-  await updateDoc(ref, {
-    ...data,
-    updatedAt: serverTimestamp(),
-  });
+  await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
   await fetch("/api/revalidate", { method: "POST" }).catch(() => {});
   return true;
 }
@@ -93,24 +83,114 @@ export async function deleteProduct(id) {
   return true;
 }
 
+export async function toggleProductStock(id, inStock) {
+  const ref = doc(db, "products", id);
+  await updateDoc(ref, { inStock, updatedAt: serverTimestamp() });
+  await fetch("/api/revalidate", { method: "POST" }).catch(() => {});
+  return true;
+}
+
 /* ─────────────────────────────────────────────────────────────
    ORDERS
 ───────────────────────────────────────────────────────────── */
 
-export async function createOrder(orderData) {
+export async function createOrder(orderData, user) {
   const ref = await addDoc(collection(db, "orders"), {
     ...orderData,
+    userId: user?.id || user?.email || "guest",
+    userEmail: user?.email || "",
+    userName: user?.name || "",
+    items: orderData.items.map((item) => ({
+      slug: item.slug,
+      name: item.name,
+      price: Number(item.price || 0),
+      quantity: item.quantity,
+      collection: item.collection || "",
+      image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "",
+      images: Array.isArray(item.images) ? item.images : [],
+    })),
     status: "pending",
     createdAt: serverTimestamp(),
   });
   return { id: ref.id };
 }
 
-export async function getAdminOrders() {
+export async function getUserOrders(user) {
+  if (!user) return [];
+  const userId = user.id || user.email || "guest";
   const snap = await getDocs(
-    query(collection(db, "orders"), orderBy("createdAt", "desc"))
+    query(collection(db, "orders"), where("userId", "==", userId), orderBy("createdAt", "desc"))
   );
   return snap.docs.map(formatFirebaseDoc);
+}
+
+export async function getAdminOrders() {
+  const snap = await getDocs(query(collection(db, "orders"), orderBy("createdAt", "desc")));
+  return snap.docs.map(formatFirebaseDoc);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   USERS
+───────────────────────────────────────────────────────────── */
+
+export async function getUsers() {
+  const snap = await getDocs(query(collection(db, "users"), orderBy("createdAt", "desc")));
+  return snap.docs.map(formatFirebaseDoc);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   REQUESTS / MESSAGES
+───────────────────────────────────────────────────────────── */
+
+export async function createRequest(user, { type, message }) {
+  const ref = await addDoc(collection(db, "requests"), {
+    userId: user.id || user.email,
+    userEmail: user.email,
+    userName: user.name || "",
+    type, // "product_request" | "distributor"
+    status: "open",
+    messages: [
+      {
+        from: "user",
+        text: message,
+        sentAt: new Date().toISOString(),
+      },
+    ],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return { id: ref.id };
+}
+
+export async function getUserRequests(user) {
+  if (!user) return [];
+  const userId = user.id || user.email;
+  const snap = await getDocs(
+    query(collection(db, "requests"), where("userId", "==", userId), orderBy("createdAt", "desc"))
+  );
+  return snap.docs.map(formatFirebaseDoc);
+}
+
+export async function getAdminRequests() {
+  const snap = await getDocs(query(collection(db, "requests"), orderBy("createdAt", "desc")));
+  return snap.docs.map(formatFirebaseDoc);
+}
+
+export async function sendMessage(requestId, { from, text, imageUrl }) {
+  const ref = doc(db, "requests", requestId);
+  const message = {
+    from,
+    text: text || "",
+    sentAt: new Date().toISOString(),
+  };
+  if (imageUrl) message.imageUrl = imageUrl;
+
+  await updateDoc(ref, {
+    messages: arrayUnion(message),
+    updatedAt: serverTimestamp(),
+    status: from === "admin" ? "answered" : "open",
+  });
+  return true;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -122,11 +202,9 @@ export async function getAdminAnalytics() {
     getDocs(collection(db, "products")),
     getDocs(collection(db, "orders")),
   ]);
-
   const orders = ordersSnap.docs.map((d) => d.data());
   const prices = productsSnap.docs.map((d) => Number(d.data().price || 0));
   const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
-
   return {
     totalProducts: productsSnap.size,
     totalOrders: ordersSnap.size,

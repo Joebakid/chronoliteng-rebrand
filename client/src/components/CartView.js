@@ -4,10 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
-import { createOrder } from "@/lib/api";
 import { resolveProductImage } from "@/lib/productImage";
 import { recordPurchase } from "@/lib/purchaseHistory";
-import { getStoredUserSession } from "@/lib/userAuth";
 
 function formatPrice(amount) {
   return new Intl.NumberFormat("en-NG", {
@@ -36,9 +34,7 @@ export default function CartView() {
   const paystackLoadedRef = useRef(false);
 
   const loadPaystackScript = () => {
-    if (paystackLoadedRef.current) {
-      return Promise.resolve();
-    }
+    if (paystackLoadedRef.current) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = "https://js.paystack.co/v1/inline.js";
@@ -92,18 +88,8 @@ export default function CartView() {
       return;
     }
 
-    const token = getStoredUserSession()?.token;
-    if (!token) {
-      router.push("/account/sign-in?next=/account/profile");
-      return;
-    }
-
     try {
-      await createOrder({
-        items: cartItems,
-        total: cartTotal,
-      });
-      recordPurchase(user, cartItems, cartTotal);
+      await recordPurchase(user, cartItems, cartTotal);
       clearCart();
       router.push("/account/profile");
     } catch (error) {
@@ -144,8 +130,7 @@ export default function CartView() {
             key={item.slug}
             className="grid gap-4 rounded-[1.5rem] bg-[var(--surface-strong)] p-4 shadow-[var(--shadow)] sm:grid-cols-[140px_1fr]"
           >
-          <div className="relative aspect-square overflow-hidden rounded-[1rem]">
-
+            <div className="relative aspect-square overflow-hidden rounded-[1rem]">
               <img
                 src={resolveProductImage(item)}
                 alt={item.name}
