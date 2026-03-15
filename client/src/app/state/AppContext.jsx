@@ -38,15 +38,22 @@ export function AppProvider({ children }) {
   // Firebase auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && firebaseUser.emailVerified) {
+      if (firebaseUser) {
         const snap = await getDoc(doc(db, "users", firebaseUser.uid));
         const profile = snap.exists() ? snap.data() : {};
-        setUser({
-          id: firebaseUser.uid,
-          name: profile.name || firebaseUser.displayName || "",
-          email: firebaseUser.email,
-          isAdmin: profile.isAdmin || false,
-        });
+        const isAdmin = profile.isAdmin || false;
+
+        // Admins bypass email verification requirement
+        if (firebaseUser.emailVerified || isAdmin) {
+          setUser({
+            id: firebaseUser.uid,
+            name: profile.name || firebaseUser.displayName || "",
+            email: firebaseUser.email,
+            isAdmin,
+          });
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
@@ -83,13 +90,17 @@ export function AppProvider({ children }) {
 
   async function signIn({ email, password }) {
     const credential = await signInWithEmailAndPassword(auth, email, password);
-    if (!credential.user.emailVerified) {
+    const snap = await getDoc(doc(db, "users", credential.user.uid));
+    const profile = snap.exists() ? snap.data() : {};
+    const isAdmin = profile.isAdmin || false;
+
+    // Non-admin users must verify email
+    if (!credential.user.emailVerified && !isAdmin) {
       await firebaseSignOut(auth);
       throw new Error("Verify your email address before logging in.");
     }
-    // Fetch full user profile to check admin status
-    const snap = await getDoc(doc(db, "users", credential.user.uid));
-    return { ...credential.user, isAdmin: snap.data()?.isAdmin || false };
+
+    return { ...credential.user, isAdmin };
   }
 
   async function signOut() {
@@ -127,9 +138,8 @@ export function AppProvider({ children }) {
   }
 
   function clearCart() { setCartItems([]); }
-  
-  // FIXED: Explicitly set the data-theme attribute on toggle
-  function toggleTheme() { 
+
+  function toggleTheme() {
     setTheme((prev) => {
       const next = prev === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", next);

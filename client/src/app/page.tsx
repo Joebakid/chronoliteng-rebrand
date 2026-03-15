@@ -1,5 +1,5 @@
 import MinimalUI from "@/components/MinimalUI";
-import { getProducts } from "@/lib/api.server";  // ← this line is the fix
+import { getProducts } from "@/lib/api.server";
 
 export const revalidate = 30;
 
@@ -9,7 +9,7 @@ export default async function Home() {
   try {
     const liveProducts = await getProducts();
     if (Array.isArray(liveProducts)) {
-      products = liveProducts;
+      products = liveProducts.filter((p) => p.inStock === true);
     }
   } catch {}
 

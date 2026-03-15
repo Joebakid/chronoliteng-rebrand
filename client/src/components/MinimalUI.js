@@ -22,12 +22,12 @@ export default function MinimalUI({ products }) {
 
         {/* Header */}
         <div className="flex flex-col gap-2 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-display text-[0.82rem] font-semibold uppercase tracking-[0.3em] text-[var(--foreground)]">
+          {/* <p className="font-display text-[0.82rem] font-semibold uppercase tracking-[0.3em] text-[var(--foreground)]">
             Curated Collection
-          </p>
-          <p className="text-[0.72rem] text-[var(--muted)]">
+          </p> */}
+          {/* <p className="text-[0.72rem] text-[var(--muted)]">
             {products.length} {products.length === 1 ? "style" : "styles"}
-          </p>
+          </p> */}
         </div>
 
         {/* Empty state */}

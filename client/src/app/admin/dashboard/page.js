@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   getProducts,
   getAdminAnalytics,
-  getAdminOrders,
   getUsers,
   createProduct,
   updateProduct,
@@ -12,6 +11,7 @@ import {
   toggleProductStock,
 } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
+import PageLoader from "@/components/PageLoader";
 
 const CATEGORIES = ["Watches", "Footwear"];
 const MOVEMENTS = ["Quartz", "Mechanical", "Automatic"];
@@ -19,17 +19,37 @@ const POWER_SOURCES = ["Battery", "Self-winding (Automatic)", "Manual-winding"];
 const DEFAULT_CASE_SIZE = "40mm";
 const TABS = ["Products", "Users"];
 
-const inputCls = "rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] w-full";
-const labelCls = "text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]";
+const inputCls =
+  "rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base sm:text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] w-full";
+const labelCls =
+  "text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]";
+
+function formatDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("Products");
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({
-    name: "", price: "", description: "", category: "Watches",
-    collection: "", caseSize: DEFAULT_CASE_SIZE, movement: "",
-    powerSource: "", strap: "", colors: "", strapColor: "", dialColor: "", images: [],
+    name: "",
+    price: "",
+    description: "",
+    category: "Watches",
+    collection: "",
+    caseSize: DEFAULT_CASE_SIZE,
+    movement: "",
+    powerSource: "",
+    strap: "",
+    colors: "",
+    strapColor: "",
+    dialColor: "",
+    images: [],
   });
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -39,25 +59,52 @@ export default function AdminDashboard() {
   const [deletingId, setDeletingId] = useState("");
   const [togglingId, setTogglingId] = useState("");
   const [editingId, setEditingId] = useState("");
-  const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "", productRevenue: 0 });
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    productId: null,
+    productName: "",
+    productRevenue: 0,
+  });
   const [analytics, setAnalytics] = useState({
-    totalProducts: 0, totalCategories: 0, averagePrice: 0,
-    highestPrice: 0, totalOrders: 0, totalRevenue: 0, totalItemsSold: 0,
+    totalProducts: 0,
+    totalCategories: 0,
+    averagePrice: 0,
+    highestPrice: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalItemsSold: 0,
   });
 
   const isEditing = Boolean(editingId);
   const isWatchCategory = !form.category || form.category === "Watches";
 
-  useEffect(() => { return () => imagePreviews.forEach(URL.revokeObjectURL); }, [imagePreviews]);
+  useEffect(() => {
+    return () => imagePreviews.forEach(URL.revokeObjectURL);
+  }, [imagePreviews]);
 
   const resetForm = () => {
-    setForm({ name: "", price: "", description: "", category: "Watches", collection: "", caseSize: DEFAULT_CASE_SIZE, movement: "", powerSource: "", strap: "", colors: "", strapColor: "", dialColor: "", images: [] });
+    setForm({
+      name: "",
+      price: "",
+      description: "",
+      category: "Watches",
+      collection: "",
+      caseSize: DEFAULT_CASE_SIZE,
+      movement: "",
+      powerSource: "",
+      strap: "",
+      colors: "",
+      strapColor: "",
+      dialColor: "",
+      images: [],
+    });
     setImagePreviews([]);
     setExistingImages([]);
     setEditingId("");
   };
 
   const fetchAll = async () => {
+    setFetching(true);
     try {
       const [productsData, analyticsData, usersData] = await Promise.all([
         getProducts(),
@@ -79,11 +126,15 @@ export default function AdminDashboard() {
   const uploadToCloudinary = async (file) => {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-    if (!cloudName || !uploadPreset) throw new Error("Cloudinary environment variables are missing.");
+    if (!cloudName || !uploadPreset)
+      throw new Error("Cloudinary environment variables are missing.");
     const data = new FormData();
     data.append("file", file);
     data.append("upload_preset", uploadPreset);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: data });
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: "POST", body: data }
+    );
     if (!res.ok) throw new Error("Cloudinary upload failed");
     const result = await res.json();
     return result.secure_url;
@@ -124,13 +175,19 @@ export default function AdminDashboard() {
     setEditingId(product.id);
     setExistingImages(Array.isArray(product.images) ? product.images : []);
     setForm({
-      name: product.name || "", price: String(product.price || ""),
-      description: product.description || "", category: product.category || "Watches",
-      collection: product.collection || "", caseSize: product.caseSize || DEFAULT_CASE_SIZE,
-      movement: product.movement || "", powerSource: product.powerSource || "",
+      name: product.name || "",
+      price: String(product.price || ""),
+      description: product.description || "",
+      category: product.category || "Watches",
+      collection: product.collection || "",
+      caseSize: product.caseSize || DEFAULT_CASE_SIZE,
+      movement: product.movement || "",
+      powerSource: product.powerSource || "",
       strap: product.strap || "",
       colors: Array.isArray(product.colors) ? product.colors.join(", ") : "",
-      strapColor: product.strapColor || "", dialColor: product.dialColor || "", images: [],
+      strapColor: product.strapColor || "",
+      dialColor: product.dialColor || "",
+      images: [],
     });
     setImagePreviews([]);
     setStatus({ type: "", message: "" });
@@ -138,7 +195,12 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteClick = (product) => {
-    setConfirmModal({ open: true, productId: product.id, productName: product.name, productRevenue: Number(product.price || 0) });
+    setConfirmModal({
+      open: true,
+      productId: product.id,
+      productName: product.name,
+      productRevenue: Number(product.price || 0),
+    });
   };
 
   const handleDeleteConfirm = async ({ removeRevenue }) => {
@@ -147,8 +209,6 @@ export default function AdminDashboard() {
     setDeletingId(productId);
     try {
       await deleteProduct(productId);
-      // Note: removeRevenue is available here for future backend revenue adjustment
-      console.log("[AdminDashboard] removeRevenue:", removeRevenue);
       setStatus({ type: "success", message: "Product deleted." });
       fetchAll();
     } catch (err) {
@@ -162,7 +222,10 @@ export default function AdminDashboard() {
     setTogglingId(product.id);
     try {
       await toggleProductStock(product.id, !product.inStock);
-      setStatus({ type: "success", message: `"${product.name}" marked as ${!product.inStock ? "in stock" : "out of stock"}.` });
+      setStatus({
+        type: "success",
+        message: `"${product.name}" marked as ${!product.inStock ? "in stock" : "out of stock"}.`,
+      });
       fetchAll();
     } catch (err) {
       setStatus({ type: "error", message: err.message || "Stock update failed." });
@@ -189,11 +252,11 @@ export default function AdminDashboard() {
   };
 
   const setField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
-
-  const fmt = (n) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
+  const fmt = (n) =>
+    new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <ConfirmModal
         open={confirmModal.open}
         title="Delete product?"
@@ -212,22 +275,26 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Stats */}
+      {/* ── Stats ── */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: "Products", value: fetching ? "—" : (analytics.totalProducts || products.length) },
-          { label: "Orders", value: fetching ? "—" : analytics.totalOrders },
-          { label: "Revenue", value: fetching ? "—" : fmt(analytics.totalRevenue) },
-          { label: "Items Sold", value: fetching ? "—" : analytics.totalItemsSold },
+          { label: "Products", value: fetching ? null : analytics.totalProducts || products.length },
+          { label: "Orders", value: fetching ? null : analytics.totalOrders },
+          { label: "Revenue", value: fetching ? null : fmt(analytics.totalRevenue) },
+          { label: "Items Sold", value: fetching ? null : analytics.totalItemsSold },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-5">
             <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">{label}</p>
-            <p className="mt-3 text-2xl font-semibold">{value}</p>
+            {value === null ? (
+              <div className="mt-3 h-7 w-16 rounded-lg bg-[var(--border)] animate-pulse" />
+            ) : (
+              <p className="mt-3 text-2xl font-semibold">{value}</p>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Tabs */}
+      {/* ── Tabs ── */}
       <div className="flex gap-2 border-b border-[var(--border)]">
         {TABS.map((tab) => (
           <button
@@ -244,22 +311,23 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Products Tab */}
+      {/* ══════════════════════════════════════
+          Products Tab
+      ══════════════════════════════════════ */}
       {activeTab === "Products" && (
         <div className="grid gap-10 xl:grid-cols-2">
-          {/* Form */}
           <div>
             <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
               {isEditing ? "Edit product" : "Upload product"}
             </h2>
-            <form onSubmit={handleSubmit} className="grid gap-4">
+            <form onSubmit={handleSubmit} className="grid gap-4" style={{ touchAction: "manipulation" }}>
               <div className="grid gap-1.5">
                 <label className={labelCls}>Product name</label>
                 <input value={form.name} onChange={setField("name")} placeholder="Chronolite Executive" required className={inputCls} />
               </div>
               <div className="grid gap-1.5">
                 <label className={labelCls}>Price</label>
-                <input type="number" value={form.price} onChange={setField("price")} required className={inputCls} />
+                <input type="number" inputMode="numeric" value={form.price} onChange={setField("price")} required className={inputCls} />
               </div>
               <div className="grid gap-1.5">
                 <label className={labelCls}>Description</label>
@@ -328,7 +396,7 @@ export default function AdminDashboard() {
                 <label className={labelCls}>Images</label>
                 <input
                   type="file" multiple accept="image/*" required={!isEditing}
-                  className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm cursor-pointer file:mr-3 file:rounded-full file:border-0 file:bg-[var(--foreground)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--surface-strong)]"
+                  className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base sm:text-sm cursor-pointer file:mr-3 file:rounded-full file:border-0 file:bg-[var(--foreground)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--surface-strong)]"
                   onChange={handleImageChange}
                 />
                 {existingImages.length > 0 && (
@@ -360,67 +428,59 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex gap-3 mt-1">
-                <button disabled={loading} className="flex-1 rounded-full bg-[var(--foreground)] py-2.5 text-sm font-semibold text-[var(--surface-strong)] disabled:opacity-60 transition">
+                <button disabled={loading} className="flex-1 rounded-full bg-[var(--foreground)] py-3 text-sm font-semibold text-[var(--surface-strong)] disabled:opacity-60 transition">
                   {loading ? "Processing..." : isEditing ? "Save changes" : "Upload"}
                 </button>
                 {isEditing && (
-                  <button type="button" onClick={resetForm} className="rounded-full border border-[var(--border)] px-5 py-2.5 text-sm font-semibold transition hover:bg-[var(--surface)]">
-                    Cancel
-                  </button>
+                  <button type="button" onClick={resetForm} className="rounded-full border border-[var(--border)] px-5 py-3 text-sm font-semibold transition hover:bg-[var(--surface)]">Cancel</button>
                 )}
               </div>
             </form>
           </div>
 
-          {/* Product List */}
+          {/* ── Current Products ── */}
           <div>
             <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
               Current products ({products.length})
             </h2>
             <div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] overflow-hidden">
               {fetching ? (
-                <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">Loading…</div>
+                <PageLoader text="Loading products" />
               ) : products.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">No products yet.</div>
               ) : (
                 products.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                    {Array.isArray(p.images) && p.images[0] ? (
-                      <img src={p.images[0]} alt={p.name} className="w-12 h-12 rounded-xl object-cover border border-[var(--border)] flex-shrink-0" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-center text-[var(--muted)] text-[10px]">No img</div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{p.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-[var(--muted)]">{fmt(p.price)}</p>
-                        {p.category && <span className="text-xs text-[var(--muted)] opacity-60">{p.category}</span>}
-                        {/* Stock badge */}
-                        <span className={`text-[0.62rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${p.inStock ? "bg-green-100 text-green-700" : "bg-[var(--surface)] text-[var(--muted)]"}`}>
-                          {p.inStock ? "In stock" : "Hidden"}
-                        </span>
+                  <div key={p.id} className="p-3 sm:p-4">
+                    <div className="flex items-center gap-3">
+                      {Array.isArray(p.images) && p.images[0] ? (
+                        <img src={p.images[0]} alt={p.name} className="w-14 h-14 rounded-xl object-cover border border-[var(--border)] flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-center text-[var(--muted)] text-[10px]">No img</div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold leading-snug">{p.name}</p>
+                        <p className="mt-0.5 text-sm font-medium text-[var(--muted)]">{fmt(p.price)}</p>
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          {p.category && <span className="text-[0.62rem] text-[var(--muted)] opacity-70">{p.category}</span>}
+                          <span className={`text-[0.62rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${p.inStock ? "bg-green-100 text-green-700" : "bg-[var(--surface)] text-[var(--muted)]"}`}>
+                            {p.inStock ? "In stock" : "Hidden"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
-                      {/* Stock toggle */}
+                    <div className="mt-3 flex gap-2">
                       <button
                         onClick={() => handleStockToggle(p)}
                         disabled={togglingId === p.id}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                          p.inStock
-                            ? "border-green-300 text-green-700 hover:bg-green-50"
-                            : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface)]"
-                        }`}
+                        className={`flex-1 rounded-full border py-2 text-xs font-semibold transition disabled:opacity-50 ${p.inStock ? "border-green-300 text-green-700 hover:bg-green-50" : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface)]"}`}
                       >
-                        {togglingId === p.id ? "…" : p.inStock ? "Mark hidden" : "Mark in stock"}
+                        {togglingId === p.id ? "…" : p.inStock ? "Hide" : "Show"}
                       </button>
-                      <button onClick={() => handleEdit(p)} className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-semibold transition hover:bg-[var(--surface)]">
-                        Edit
-                      </button>
+                      <button onClick={() => handleEdit(p)} className="flex-1 rounded-full border border-[var(--border)] py-2 text-xs font-semibold transition hover:bg-[var(--surface)]">Edit</button>
                       <button
                         onClick={() => handleDeleteClick(p)}
                         disabled={deletingId === p.id}
-                        className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--danger)] transition hover:bg-[var(--surface)] disabled:opacity-50"
+                        className="flex-1 rounded-full border border-[var(--border)] py-2 text-xs font-semibold text-[var(--danger)] transition hover:bg-[var(--surface)] disabled:opacity-50"
                       >
                         {deletingId === p.id ? "…" : "Delete"}
                       </button>
@@ -433,7 +493,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Users Tab */}
+      {/* ══════════════════════════════════════
+          Users Tab
+      ══════════════════════════════════════ */}
       {activeTab === "Users" && (
         <div>
           <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
@@ -441,7 +503,7 @@ export default function AdminDashboard() {
           </h2>
           <div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] overflow-hidden">
             {fetching ? (
-              <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">Loading…</div>
+              <PageLoader text="Loading users" />
             ) : users.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">No users yet.</div>
             ) : (
@@ -456,9 +518,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex-shrink-0 flex items-center gap-2">
                     {u.isAdmin && (
-                      <span className="text-[0.62rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-[var(--surface)] text-[var(--muted)]">
-                        Admin
-                      </span>
+                      <span className="text-[0.62rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-[var(--surface)] text-[var(--muted)]">Admin</span>
                     )}
                     <p className="text-xs text-[var(--muted)]">
                       {u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-NG") : "—"}
