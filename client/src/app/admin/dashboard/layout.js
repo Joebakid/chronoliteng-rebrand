@@ -1,34 +1,51 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import BackHomeButton from "@/components/BackHomeButton";
 import { useAppContext } from "@/app/state/AppContext";
+import { getAdminRequests } from "@/lib/api"; // Import your fetch helper
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const { signOut } = useAppContext();
+  const [openRequestsCount, setOpenRequestsCount] = useState(0);
 
   const isLoginPage = pathname === "/admin/login";
 
-  /**
-   * FIX: We use window.location.href instead of router.push.
-   * This forces a full page reload which clears the client-side AppContext state 
-   * and ensures the Navbar updates to show 'Sign In' instead of the old user.
-   */
+  // Fetch requests to check for "open" status
+  useEffect(() => {
+    if (isLoginPage) return;
+
+    const fetchCounts = async () => {
+      try {
+        const data = await getAdminRequests();
+        // Count chats where status is "open" (waiting for admin)
+        const count = data.filter((req) => req.status === "open").length;
+        setOpenRequestsCount(count);
+      } catch (err) {
+        console.error("Failed to fetch request counts:", err);
+      }
+    };
+
+    fetchCounts();
+    // Optional: Set up an interval to refresh the badge every 60 seconds
+    const interval = setInterval(fetchCounts, 60000);
+    return () => clearInterval(interval);
+  }, [isLoginPage, pathname]);
+
   const handleLogout = async () => {
     try {
       await signOut();
       window.location.href = "/admin/login";
     } catch (error) {
       console.error("Logout failed:", error);
-      // Fallback in case of error
       window.location.href = "/admin/login";
     }
   };
 
-  // Don't show admin header on login page
   if (isLoginPage) {
     return <>{children}</>;
   }
@@ -59,16 +76,24 @@ export default function AdminLayout({ children }) {
           >
             Dashboard
           </Link>
+          
           <Link
             href="/admin/requests"
-            className={`rounded-full border border-[var(--border)] px-4 py-2 text-sm font-semibold transition ${
+            className={`relative rounded-full border border-[var(--border)] px-4 py-2 text-sm font-semibold transition ${
               pathname === "/admin/requests"
                 ? "bg-[var(--foreground)] text-[var(--surface-strong)]"
                 : "bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--background-strong)]"
             }`}
           >
             Requests
+            {/* NOTIFICATION BADGE */}
+            {openRequestsCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-[var(--surface-strong)]">
+                {openRequestsCount}
+              </span>
+            )}
           </Link>
+
           <button
             onClick={handleLogout}
             className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--background-strong)]"

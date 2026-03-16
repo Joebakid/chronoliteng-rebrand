@@ -8,13 +8,13 @@ export default function Pagination({ totalPages = 1 }) {
   const pathname = usePathname();
   const currentPage = Number(searchParams.get("page")) || 1;
 
-  if (totalPages <= 1) return null;
-
   const createPageURL = (pageNumber) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", pageNumber.toString());
     return `${pathname}?${params.toString()}`;
   };
+
+  const safeTotalPages = Math.max(1, totalPages);
 
   return (
     <div className="flex items-center justify-center gap-2 mt-10 pb-10">
@@ -32,16 +32,17 @@ export default function Pagination({ totalPages = 1 }) {
         </span>
       )}
 
-      {/* NUMBERS */}
+      {/* PAGE NUMBERS */}
       <div className="flex gap-1">
-        {Array.from({ length: totalPages }, (_, i) => {
+        {Array.from({ length: safeTotalPages }, (_, i) => {
           const page = i + 1;
           const isActive = page === currentPage;
+
           return (
             <Link
               key={page}
               href={createPageURL(page)}
-              className={`min-w-[40px] text-center rounded-xl px-3 py-2 text-sm border transition ${
+              className={`min-w-[40px] text-center rounded-xl mx-1 px-3 py-2 text-sm border transition ${
                 isActive
                   ? "bg-orange-500 text-white border-orange-500"
                   : "border-[var(--border)] hover:bg-[var(--surface)]"
@@ -54,7 +55,7 @@ export default function Pagination({ totalPages = 1 }) {
       </div>
 
       {/* NEXT */}
-      {currentPage < totalPages ? (
+      {currentPage < safeTotalPages ? (
         <Link
           href={createPageURL(currentPage + 1)}
           className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition"

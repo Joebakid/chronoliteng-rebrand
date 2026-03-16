@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { createRequest, sendMessage } from "@/lib/api";
+import { createRequest, sendMessage, deleteMessage, deleteRequest } from "@/lib/api"; // Added deleteRequest
 import MessageQuote from "../../../components/MessageQuote"; 
+import ConfirmModal from "@/components/ConfirmModal";
 
 function formatDate(value) {
   if (!value) return "";
@@ -54,6 +55,9 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
   const [messageImagePreview, setMessageImagePreview] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [sending, setSending] = useState(false);
+
+  // Modal State
+  const [modal, setModal] = useState({ open: false, type: null, data: null, requestId: null, title: "", message: "" });
   
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -76,7 +80,6 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
   }, [requests, activeId]);
 
   const handleSendMessage = async (req) => {
-    // Check if we have content to send
     const hasImage = activeId === req.id && messageImage;
     if (!newMessage.trim() && !hasImage) return;
 
@@ -99,7 +102,6 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
         } : null
       });
 
-      // Clear states
       setNewMessage("");
       setMessageImage(null);
       setMessageImagePreview("");
@@ -107,9 +109,48 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
       onRefresh();
     } catch (err) {
       console.error("Chat error:", err);
-      alert("Failed to send message/photo. Please check your connection.");
     } finally {
       setSending(false);
+    }
+  };
+
+  // --- DELETE HANDLERS ---
+  const triggerDeleteMessage = (reqId, msg) => {
+    setModal({
+      open: true,
+      type: "message",
+      requestId: reqId,
+      data: msg,
+      title: "Delete Message?",
+      message: "This specific message will be removed from your history."
+    });
+  };
+
+  const triggerDeleteChat = (reqId) => {
+    setModal({
+      open: true,
+      type: "chat",
+      requestId: reqId,
+      data: null,
+      title: "Delete Entire Chat?",
+      message: "This will permanently remove the whole conversation. This action cannot be undone."
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    const { type, requestId, data } = modal;
+    setModal({ ...modal, open: false });
+    
+    try {
+      if (type === "message") {
+        await deleteMessage(requestId, data);
+      } else if (type === "chat") {
+        await deleteRequest(requestId);
+        if (activeId === requestId) setActiveId(null);
+      }
+      onRefresh();
+    } catch (err) {
+      console.error("Delete error:", err);
     }
   };
 
@@ -149,7 +190,6 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
       {open && (
         <div className="px-6 pb-8 space-y-6 border-t border-[var(--border)] pt-6">
           
-          {/* New Request Form */}
           {showForm && (
             <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm space-y-4">
               <div className="flex-1 space-y-1.5">
@@ -197,7 +237,6 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
             </div>
           )}
 
-          {/* Active Chats List */}
           <div className="grid gap-6">
             {loading ? (
                <div className="animate-pulse space-y-4 py-10">
@@ -219,7 +258,17 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
                       <h3 className="text-xs font-black uppercase tracking-tighter text-[var(--foreground)]">
                         {REQUEST_TYPES.find(t => t.value === req.type)?.label || req.type}
                       </h3>
-                      <span className="text-[10px] font-bold text-[var(--muted)]">{formatDate(req.createdAt)}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-[var(--muted)]">{formatDate(req.createdAt)}</span>
+                        {/* DELETE CHAT BUTTON */}
+                        <button 
+                          onClick={() => triggerDeleteChat(req.id)}
+                          className="p-1.5 rounded-full hover:bg-red-50 text-[var(--muted)] hover:text-red-500 transition"
+                          title="Delete conversation"
+                        >
+                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="p-4 sm:p-6 space-y-4 max-h-[400px] overflow-y-auto bg-[var(--surface)]/30">
@@ -229,7 +278,7 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
                           <div key={i} className={`flex ${isMe ? "justify-end" : "justify-start"} items-end gap-2`}>
                             {!isMe && <div className="h-6 w-6 rounded-full bg-[var(--accent)] flex items-center justify-center text-[8px] text-white font-bold shrink-0">AD</div>}
                             
-                            <div className={`group relative max-w-[85%] rounded-[1.5rem] px-4 py-3 text-sm ${
+                            <div className={`group/msg relative max-w-[85%] rounded-[1.5rem] px-4 py-3 text-sm ${
                               isMe ? "bg-[var(--foreground)] text-[var(--surface-strong)] rounded-br-none" : "bg-[var(--surface-strong)] text-[var(--foreground)] rounded-bl-none border border-[var(--border)]"
                             }`}>
                               {msg.replyTo && <MessageQuote message={msg.replyTo} isInsideBubble={true} />}
@@ -238,12 +287,24 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
                               )}
                               <div className="flex justify-between items-start gap-4">
                                 {msg.text && <p className="leading-relaxed font-medium">{msg.text}</p>}
-                                <button 
-                                  onClick={() => { setActiveId(req.id); setReplyingTo(msg); }}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[var(--muted)] hover:text-[var(--accent)]"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 17L4 12L9 7M20 18V13C20 12.4696 19.7893 11.9609 19.4142 11.5858C19.0391 11.2107 18.5304 11 18 11H5"/></svg>
-                                </button>
+                                <div className="flex items-center gap-2 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                                  {/* REPLY BUTTON */}
+                                  <button 
+                                    onClick={() => { setActiveId(req.id); setReplyingTo(msg); }}
+                                    className="p-1 text-[var(--muted)] hover:text-[var(--accent)]"
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 17L4 12L9 7M20 18V13C20 12.4696 19.7893 11.9609 19.4142 11.5858C19.0391 11.2107 18.5304 11 18 11H5"/></svg>
+                                  </button>
+                                  {/* DELETE INDIVIDUAL TEXT BUTTON (Only for your own texts) */}
+                                  {isMe && (
+                                    <button 
+                                      onClick={() => triggerDeleteMessage(req.id, msg)}
+                                      className="p-1 text-[var(--muted)] hover:text-red-500"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               <p className={`text-[9px] mt-1 font-bold opacity-40 ${isMe ? "text-right" : "text-left"}`}>
                                 {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -261,7 +322,6 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
                         <MessageQuote message={replyingTo} onClear={() => setReplyingTo(null)} />
                       )}
                       
-                      {/* Image Preview for Sending */}
                       {activeId === req.id && messageImagePreview && (
                         <div className="relative mb-3 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--accent)] shadow-lg animate-in zoom-in-50">
                           <img src={messageImagePreview} className="w-full h-full object-cover" alt="preview" />
@@ -311,7 +371,16 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
         </div>
       )}
 
-      {/* Global hidden file input */}
+      {/* REUSABLE CONFIRMATION MODAL */}
+      <ConfirmModal 
+        open={modal.open}
+        title={modal.title}
+        message={modal.message}
+        danger={true}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setModal({ ...modal, open: false })}
+      />
+
       <input 
         type="file" 
         accept="image/*" 
@@ -320,9 +389,7 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          
           const preview = URL.createObjectURL(file);
-          
           if (showForm && activeId === null) {
             setRequestImage(file);
             setRequestImagePreview(preview);
@@ -330,7 +397,6 @@ export default function RequestsSection({ user, requests, loading, onRefresh, on
             setMessageImage(file);
             setMessageImagePreview(preview);
           }
-          // Reset value so same file can be selected again if needed
           e.target.value = '';
         }} 
       />
