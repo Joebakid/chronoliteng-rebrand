@@ -12,9 +12,20 @@ export default function AdminLayout({ children }) {
 
   const isLoginPage = pathname === "/admin/login";
 
+  /**
+   * FIX: We use window.location.href instead of router.push.
+   * This forces a full page reload which clears the client-side AppContext state 
+   * and ensures the Navbar updates to show 'Sign In' instead of the old user.
+   */
   const handleLogout = async () => {
-    await signOut();
-    router.push("/admin/login");
+    try {
+      await signOut();
+      window.location.href = "/admin/login";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Fallback in case of error
+      window.location.href = "/admin/login";
+    }
   };
 
   // Don't show admin header on login page

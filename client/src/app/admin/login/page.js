@@ -19,19 +19,29 @@ export default function AdminLogin() {
     setError("");
 
     try {
+      // 1. Perform the sign in
       const firebaseUser = await signIn({
         email: form.email,
         password: form.password,
       });
 
-      if (!firebaseUser?.isAdmin) {
-        throw new Error("Admin access required. This account is not an admin.");
+      /**
+       * FIX: If your AppContext 'signIn' function returns the user, 
+       * ensure we check the admin status correctly.
+       * If 'isAdmin' is a custom claim, it might take a millisecond to be available.
+       */
+      if (firebaseUser) {
+        if (firebaseUser.isAdmin) {
+          // Success: Use window.location to force a clean state for the Admin Dashboard
+          window.location.href = "/admin/dashboard";
+        } else {
+          setError("Admin access required. This account is not an admin.");
+          setLoading(false);
+        }
       }
-
-      router.push("/admin/dashboard");
     } catch (err) {
+      console.error("Login error:", err);
       setError(err.message || "Invalid email or password");
-    } finally {
       setLoading(false);
     }
   };
