@@ -10,34 +10,31 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const router = useRouter();
   const { signIn } = useAppContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setLoading(true);
     setError("");
 
     try {
-      // 1. Perform the sign in
       const firebaseUser = await signIn({
         email: form.email,
         password: form.password,
       });
 
-      /**
-       * FIX: If your AppContext 'signIn' function returns the user, 
-       * ensure we check the admin status correctly.
-       * If 'isAdmin' is a custom claim, it might take a millisecond to be available.
-       */
-      if (firebaseUser) {
-        if (firebaseUser.isAdmin) {
-          // Success: Use window.location to force a clean state for the Admin Dashboard
-          window.location.href = "/admin/dashboard";
-        } else {
-          setError("Admin access required. This account is not an admin.");
-          setLoading(false);
-        }
+      if (!firebaseUser) {
+        throw new Error("Login failed");
+      }
+
+      // redirect based on role
+      if (firebaseUser.isAdmin) {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/account/profile");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -54,9 +51,11 @@ export default function AdminLogin() {
 
       <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-md rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-[var(--shadow)] sm:p-8">
+          
           <p className="text-center text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
             Admin Access
           </p>
+
           <h2 className="font-display mb-6 mt-4 text-center text-3xl font-semibold text-[var(--foreground)]">
             Admin Login
           </h2>
@@ -68,24 +67,31 @@ export default function AdminLogin() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* EMAIL */}
             <div>
               <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
                 Email
               </label>
+
               <input
                 type="email"
                 required
                 value={form.email}
                 placeholder="admin@chronolite.com"
                 className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, email: e.target.value })
+                }
               />
             </div>
 
+            {/* PASSWORD */}
             <div>
               <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
                 Password
               </label>
+
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -93,11 +99,14 @@ export default function AdminLogin() {
                   value={form.password}
                   placeholder="Enter admin password"
                   className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 pr-20 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
                 />
+
                 <button
                   type="button"
-                  onClick={() => setShowPassword((current) => !current)}
+                  onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]"
                 >
                   {showPassword ? "Hide" : "Show"}
@@ -105,6 +114,7 @@ export default function AdminLogin() {
               </div>
             </div>
 
+            {/* SUBMIT */}
             <button
               type="submit"
               disabled={loading}
@@ -112,6 +122,7 @@ export default function AdminLogin() {
             >
               {loading ? "Logging in..." : "Login"}
             </button>
+
           </form>
         </div>
       </div>

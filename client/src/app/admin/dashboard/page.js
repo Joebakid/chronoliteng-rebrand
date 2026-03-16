@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { getProducts, getAdminAnalytics, getUsers, getAdminOrders } from "@/lib/api";
 import ProductsTab from "./ProductsTab";
 import UsersTab from "./UsersTab";
 import OrdersTab from "./OrdersTab";
+import PageLoader from "@/components/PageLoader";
 
 const TABS = ["Products", "Users", "Orders"];
-const fmt = (n) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
+const fmt = (n) => 
+  new Intl.NumberFormat("en-NG", { 
+    style: "currency", 
+    currency: "NGN", 
+    maximumFractionDigits: 0 
+  }).format(n);
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState("Products");
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
@@ -22,6 +33,7 @@ export default function AdminDashboard() {
     highestPrice: 0, totalOrders: 0, totalRevenue: 0, totalItemsSold: 0,
   });
 
+  // --- Data Fetching ---
   const fetchAll = async () => {
     setFetching(true);
     try {
@@ -42,7 +54,7 @@ export default function AdminDashboard() {
     setLoadingOrders(true);
     try {
       const data = await getAdminOrders();
-      setOrders(data);
+      setOrders(data || []);
     } catch (err) {
       console.error("[AdminDashboard] orders error:", err);
     } finally {
@@ -53,15 +65,29 @@ export default function AdminDashboard() {
   useEffect(() => { fetchAll(); }, []);
   useEffect(() => { if (activeTab === "Orders") fetchOrders(); }, [activeTab]);
 
+  // --- Handlers ---
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    
+    // When switching tabs, clear the ?page= param so the new tab starts at page 1
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   return (
     <div className="space-y-8">
       {status.message && (
-        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${status.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"}`}>
+        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+          status.type === "error" 
+            ? "bg-red-50 text-red-700 border border-red-200" 
+            : "bg-green-50 text-green-700 border border-green-200"
+        }`}>
           {status.message}
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
           { label: "Products",   value: fetching ? null : analytics.totalProducts || products.length },
@@ -80,12 +106,12 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Tabs */}
+      {/* Navigation Tabs */}
       <div className="flex gap-2 border-b border-[var(--border)]">
         {TABS.map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => handleTabChange(tab)}
             className={`pb-3 text-sm font-semibold uppercase tracking-[0.16em] transition border-b-2 -mb-px ${
               activeTab === tab
                 ? "border-[var(--foreground)] text-[var(--foreground)]"
@@ -97,20 +123,25 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {activeTab === "Products" && (
-        <ProductsTab
-          products={products}
-          fetching={fetching}
-          onRefresh={fetchAll}
-          onStatusChange={setStatus}
-        />
-      )}
-      {activeTab === "Users" && (
-        <UsersTab users={users} fetching={fetching} />
-      )}
-      {activeTab === "Orders" && (
-        <OrdersTab orders={orders} loadingOrders={loadingOrders} />
-      )}
+      {/* Tab Content with Suspense Boundary for useSearchParams */}
+      <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
+        <div className="min-h-[400px]">
+          {activeTab === "Products" && (
+            <ProductsTab
+              products={products}
+              fetching={fetching}
+              onRefresh={fetchAll}
+              onStatusChange={setStatus}
+            />
+          )}
+          {activeTab === "Users" && (
+            <UsersTab users={users} fetching={fetching} />
+          )}
+          {activeTab === "Orders" && (
+            <OrdersTab orders={orders} loadingOrders={loadingOrders} />
+          )}
+        </div>
+      </Suspense>
     </div>
   );
 }

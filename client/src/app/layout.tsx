@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Providers from "./providers";
 import { bodyFont, displayFont } from "./fonts";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata = {
   title: {
@@ -48,6 +49,9 @@ document.documentElement.setAttribute("data-theme","light");
           <main className="flex-1">{children}</main>
           <Footer />
         </Providers>
+
+        {/* Vercel Analytics */}
+        <Analytics />
       </body>
     </html>
   );

@@ -10,8 +10,12 @@ const MOVEMENTS = ["Quartz", "Mechanical", "Automatic"];
 const POWER_SOURCES = ["Battery", "Self-winding (Automatic)", "Manual-winding"];
 const DEFAULT_CASE_SIZE = "40mm";
 
-const inputCls = "rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base sm:text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] w-full";
-const labelCls = "text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]";
+/** * CRITICAL FOR MOBILE: 
+ * Font size must be at least 16px (text-base) to prevent auto-zoom on iOS.
+ * We use text-base for mobile and sm:text-sm for larger screens.
+ */
+const inputCls = "rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] w-full appearance-none";
+const labelCls = "text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ml-1";
 const fmt = (n) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
 
 export default function ProductsTab({ products, fetching, onRefresh, onStatusChange }) {
@@ -43,7 +47,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
   const uploadToCloudinary = async (file) => {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-    if (!cloudName || !uploadPreset) throw new Error("Cloudinary environment variables are missing.");
+    if (!cloudName || !uploadPreset) throw new Error("Cloudinary settings missing.");
     const data = new FormData();
     data.append("file", file);
     data.append("upload_preset", uploadPreset);
@@ -60,14 +64,24 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     try {
       let imageUrls = [];
       if (form.images.length > 0) imageUrls = await Promise.all(form.images.map((file) => uploadToCloudinary(file)));
+      
       const payload = {
         ...form,
         price: Number(form.price),
         category: form.category || "Watches",
         colors: form.colors ? form.colors.split(",").map((c) => c.trim()) : [],
-        images: imageUrls.length > 0 ? imageUrls : undefined,
+        // Combine existing and new images if editing
+        images: isEditing 
+          ? [...existingImages, ...imageUrls] 
+          : imageUrls,
       };
-      if (isEditing) { await updateProduct(editingId, payload); } else { await createProduct(payload); }
+
+      if (isEditing) { 
+        await updateProduct(editingId, payload); 
+      } else { 
+        await createProduct(payload); 
+      }
+      
       resetForm();
       onStatusChange({ type: "success", message: isEditing ? "Product updated." : "Product uploaded." });
       onRefresh();
@@ -98,7 +112,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     setConfirmModal({ open: true, productId: product.id, productName: product.name, productRevenue: Number(product.price || 0) });
   };
 
-  const handleDeleteConfirm = async ({ removeRevenue }) => {
+  const handleDeleteConfirm = async () => {
     const { productId } = confirmModal;
     setConfirmModal({ open: false, productId: null, productName: "", productRevenue: 0 });
     setDeletingId(productId);
@@ -117,7 +131,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     setTogglingId(product.id);
     try {
       await toggleProductStock(product.id, !product.inStock);
-      onStatusChange({ type: "success", message: `"${product.name}" marked as ${!product.inStock ? "in stock" : "out of stock"}.` });
+      onStatusChange({ type: "success", message: `Status updated.` });
       onRefresh();
     } catch (err) {
       onStatusChange({ type: "error", message: err.message || "Stock update failed." });
@@ -128,7 +142,6 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files || []);
-    imagePreviews.forEach(URL.revokeObjectURL);
     setForm((prev) => ({ ...prev, images: files }));
     setImagePreviews(files.map((f) => URL.createObjectURL(f)));
   };
@@ -146,176 +159,162 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
   const setField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   return (
-    <div className="grid gap-10 xl:grid-cols-2">
+    <div className="flex flex-col gap-10 lg:grid lg:grid-cols-2 lg:items-start">
       <ConfirmModal
         open={confirmModal.open}
         title="Delete product?"
-        message={`"${confirmModal.productName}" will be permanently removed. This cannot be undone.`}
+        message={`"${confirmModal.productName}" will be permanently removed.`}
         confirmLabel="Delete" cancelLabel="Cancel" danger withRevenueOption
         onConfirm={handleDeleteConfirm}
         onCancel={() => setConfirmModal({ open: false, productId: null, productName: "", productRevenue: 0 })}
       />
 
-      {/* Form */}
-      <div>
-        <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-          {isEditing ? "Edit product" : "Upload product"}
-        </h2>
-        <form onSubmit={handleSubmit} className="grid gap-4" style={{ touchAction: "manipulation" }}>
-          <div className="grid gap-1.5">
+      {/* Form Section */}
+      <div className="order-1 lg:sticky lg:top-24">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
+            {isEditing ? "Edit product" : "New upload"}
+          </h2>
+          {isEditing && (
+            <button onClick={resetForm} className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] underline">
+              Create New instead
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit} className="grid gap-5">
+          <div className="space-y-1.5">
             <label className={labelCls}>Product name</label>
-            <input value={form.name} onChange={setField("name")} placeholder="Chronolite Executive" required className={inputCls} />
+            <input value={form.name} onChange={setField("name")} placeholder="e.g. Chronolite Executive" required className={inputCls} />
           </div>
-          <div className="grid gap-1.5">
-            <label className={labelCls}>Price</label>
-            <input type="number" inputMode="numeric" value={form.price} onChange={setField("price")} required className={inputCls} />
-          </div>
-          <div className="grid gap-1.5">
-            <label className={labelCls}>Description</label>
-            <textarea required rows={4} value={form.description} onChange={setField("description")} className={inputCls} />
-          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-1.5">
+            <div className="space-y-1.5">
+              <label className={labelCls}>Price (NGN)</label>
+              <input type="number" inputMode="numeric" value={form.price} onChange={setField("price")} required className={inputCls} />
+            </div>
+            <div className="space-y-1.5">
               <label className={labelCls}>Category</label>
               <select value={form.category} onChange={setField("category")} className={inputCls}>
                 {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
-            <div className="grid gap-1.5">
-              <label className={labelCls}>Collection</label>
-              <input value={form.collection} onChange={setField("collection")} placeholder="Heritage" className={inputCls} />
-            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={labelCls}>Description</label>
+            <textarea required rows={3} value={form.description} onChange={setField("description")} className={`${inputCls} resize-none`} />
           </div>
 
           {isWatchCategory && (
-            <>
+            <div className="rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 sm:p-6 space-y-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--muted)] text-center mb-2">Technical Specs</p>
+              
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
+                <div className="space-y-1.5">
                   <label className={labelCls}>Movement</label>
                   <select value={form.movement} onChange={setField("movement")} className={inputCls}>
-                    <option value="" disabled>Select movement</option>
+                    <option value="">Select...</option>
                     {MOVEMENTS.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-                <div className="grid gap-1.5">
-                  <label className={labelCls}>Power source</label>
-                  <select value={form.powerSource} onChange={setField("powerSource")} className={inputCls}>
-                    <option value="" disabled>Select power source</option>
-                    {POWER_SOURCES.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Collection</label>
+                  <input value={form.collection} onChange={setField("collection")} placeholder="Heritage" className={inputCls} />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
+                <div className="space-y-1.5">
                   <label className={labelCls}>Case size</label>
-                  <input value={form.caseSize} onChange={setField("caseSize")} placeholder={DEFAULT_CASE_SIZE} className={inputCls} />
+                  <input value={form.caseSize} onChange={setField("caseSize")} placeholder="40mm" className={inputCls} />
                 </div>
-                <div className="grid gap-1.5">
+                <div className="space-y-1.5">
                   <label className={labelCls}>Strap material</label>
                   <input value={form.strap} onChange={setField("strap")} placeholder="Leather" className={inputCls} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                  <label className={labelCls}>Dial color</label>
-                  <input value={form.dialColor} onChange={setField("dialColor")} placeholder="Midnight Black" className={inputCls} />
-                </div>
-                <div className="grid gap-1.5">
-                  <label className={labelCls}>Strap color</label>
-                  <input value={form.strapColor} onChange={setField("strapColor")} placeholder="Tan Brown" className={inputCls} />
-                </div>
-              </div>
-            </>
+            </div>
           )}
 
-          <div className="grid gap-1.5">
-            <label className={labelCls}>Available colors (comma-separated)</label>
-            <input value={form.colors} onChange={setField("colors")} placeholder="Black, Silver, Gold" className={inputCls} />
-          </div>
-
-          <div className="grid gap-2">
+          <div className="space-y-1.5">
             <label className={labelCls}>Images</label>
-            <input
-              type="file" multiple accept="image/*" required={!isEditing}
-              className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base sm:text-sm cursor-pointer file:mr-3 file:rounded-full file:border-0 file:bg-[var(--foreground)] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[var(--surface-strong)]"
-              onChange={handleImageChange}
-            />
-            {existingImages.length > 0 && (
-              <div className="mt-1">
-                <p className="mb-2 text-xs text-[var(--muted)] uppercase tracking-widest">Current images</p>
-                <div className="flex flex-wrap gap-2">
-                  {existingImages.map((url, i) => (
-                    <div key={i} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)]">
-                      <img src={url} alt={`existing-${i}`} className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => removeExistingImage(i)} className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition text-white text-xs font-bold">✕</button>
-                    </div>
-                  ))}
-                </div>
+            <div className="relative">
+               <input
+                type="file" multiple accept="image/*" required={!isEditing && existingImages.length === 0}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                onChange={handleImageChange}
+              />
+              <div className="rounded-xl border-2 border-dashed border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+                <p className="text-sm font-medium text-[var(--muted)]">Tap to upload photos</p>
+                <p className="text-[10px] text-[var(--muted)] opacity-60 mt-1">High quality JPEGs preferred</p>
               </div>
-            )}
-            {imagePreviews.length > 0 && (
-              <div className="mt-1">
-                <p className="mb-2 text-xs text-[var(--muted)] uppercase tracking-widest">New images</p>
-                <div className="flex flex-wrap gap-2">
-                  {imagePreviews.map((src, i) => (
-                    <div key={i} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-[var(--border)]">
-                      <img src={src} alt={`preview-${i}`} className="w-full h-full object-cover" />
-                      <button type="button" onClick={() => removeNewPreview(i)} className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition text-white text-xs font-bold">✕</button>
-                    </div>
-                  ))}
-                </div>
+            </div>
+
+            {/* Preview Areas */}
+            {(existingImages.length > 0 || imagePreviews.length > 0) && (
+              <div className="mt-4 flex flex-wrap gap-3 p-2 bg-[var(--surface)] rounded-2xl border border-[var(--border)]">
+                {existingImages.map((url, i) => (
+                  <div key={`ex-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-[var(--border)]">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeExistingImage(i)} className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl-lg shadow-lg">✕</button>
+                  </div>
+                ))}
+                {imagePreviews.map((src, i) => (
+                  <div key={`pre-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-[var(--accent)]">
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeNewPreview(i)} className="absolute top-0 right-0 bg-black text-white p-1 rounded-bl-lg">✕</button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          <div className="flex gap-3 mt-1">
-            <button disabled={loading} className="flex-1 rounded-full bg-[var(--foreground)] py-3 text-sm font-semibold text-[var(--surface-strong)] disabled:opacity-60 transition">
-              {loading ? "Processing..." : isEditing ? "Save changes" : "Upload"}
-            </button>
-            {isEditing && (
-              <button type="button" onClick={resetForm} className="rounded-full border border-[var(--border)] px-5 py-3 text-sm font-semibold transition hover:bg-[var(--surface)]">Cancel</button>
-            )}
-          </div>
+          <button disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-base font-bold text-[var(--surface-strong)] shadow-xl disabled:opacity-50 transition active:scale-95">
+            {loading ? "Please wait..." : isEditing ? "Update Product" : "Upload Product"}
+          </button>
         </form>
       </div>
 
-      {/* Product list */}
-      <div>
-        <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-          Current products ({products.length})
+      {/* Product List Section */}
+      <div className="order-2">
+        <h2 className="mb-6 text-sm font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
+          Inventory ({products.length})
         </h2>
-        <div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] overflow-hidden">
+        <div className="grid gap-3">
           {fetching ? (
-            <PageLoader text="Loading products" />
+            <PageLoader text="Syncing..." />
           ) : products.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">No products yet.</div>
+            <div className="px-4 py-20 text-center rounded-3xl border border-dashed border-[var(--border)] text-sm text-[var(--muted)]">No products found.</div>
           ) : (
             products.map((p) => (
-              <div key={p.id} className="p-3 sm:p-4">
-                <div className="flex items-center gap-3">
-                  {Array.isArray(p.images) && p.images[0] ? (
-                    <img src={p.images[0]} alt={p.name} className="w-14 h-14 rounded-xl object-cover border border-[var(--border)] flex-shrink-0" />
+              <div key={p.id} className="flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm">
+                <div className="flex items-center gap-4">
+                  {p.images?.[0] ? (
+                    <img src={p.images[0]} alt="" className="w-16 h-16 rounded-2xl object-cover border border-[var(--border)] shadow-sm" />
                   ) : (
-                    <div className="w-14 h-14 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex-shrink-0 flex items-center justify-center text-[var(--muted)] text-[10px]">No img</div>
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[8px] text-[var(--muted)]">No Image</div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-snug">{p.name}</p>
-                    <p className="mt-0.5 text-sm font-medium text-[var(--muted)]">{fmt(p.price)}</p>
-                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                      {p.category && <span className="text-[0.62rem] text-[var(--muted)] opacity-70">{p.category}</span>}
-                      <span className={`text-[0.62rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${p.inStock ? "bg-green-100 text-green-700" : "bg-[var(--surface)] text-[var(--muted)]"}`}>
-                        {p.inStock ? "In stock" : "Hidden"}
+                    <p className="truncate text-sm font-bold text-[var(--foreground)]">{p.name}</p>
+                    <p className="text-sm font-medium text-[var(--muted)]">{fmt(p.price)}</p>
+                    <div className="mt-1 flex gap-2">
+                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${p.inStock ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {p.inStock ? "Live" : "Hidden"}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
-                  <button onClick={() => handleStockToggle(p)} disabled={togglingId === p.id} className={`flex-1 rounded-full border py-2 text-xs font-semibold transition disabled:opacity-50 ${p.inStock ? "border-green-300 text-green-700 hover:bg-green-50" : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface)]"}`}>
-                    {togglingId === p.id ? "…" : p.inStock ? "Hide" : "Show"}
+                
+                <div className="flex gap-2">
+                  <button onClick={() => handleStockToggle(p)} disabled={togglingId === p.id} className="flex-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2.5 text-[11px] font-bold uppercase tracking-wider transition active:bg-[var(--background-strong)]">
+                    {p.inStock ? "Hide" : "Show"}
                   </button>
-                  <button onClick={() => handleEdit(p)} className="flex-1 rounded-full border border-[var(--border)] py-2 text-xs font-semibold transition hover:bg-[var(--surface)]">Edit</button>
-                  <button onClick={() => handleDeleteClick(p)} disabled={deletingId === p.id} className="flex-1 rounded-full border border-[var(--border)] py-2 text-xs font-semibold text-[var(--danger)] transition hover:bg-[var(--surface)] disabled:opacity-50">
-                    {deletingId === p.id ? "…" : "Delete"}
+                  <button onClick={() => handleEdit(p)} className="flex-1 rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2.5 text-[11px] font-bold uppercase tracking-wider transition active:bg-[var(--background-strong)]">
+                    Edit
+                  </button>
+                  <button onClick={() => handleDeleteClick(p)} disabled={deletingId === p.id} className="flex-1 rounded-xl bg-red-50 border border-red-100 py-2.5 text-[11px] font-bold uppercase tracking-wider text-red-600 transition active:bg-red-100">
+                    Delete
                   </button>
                 </div>
               </div>

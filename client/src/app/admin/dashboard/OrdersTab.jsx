@@ -1,100 +1,108 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageLoader from "@/components/PageLoader";
+import Pagination from "@/components/Pagination";
 
 const ORDERS_PER_PAGE = 10;
-const fmt = (n) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
+
+const fmt = (n) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(n);
+
 const fmtDate = (value) => {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 };
 
-export default function OrdersTab({ orders, loadingOrders }) {
-  const [ordersPage, setOrdersPage] = useState(1);
+export default function OrdersTab({ orders = [], loadingOrders }) {
+  const searchParams = useSearchParams();
+  
+  // 1. Get page from URL
+  const pageStr = searchParams.get("page");
+  const pageFromURL = parseInt(pageStr) || 1;
 
+  // 2. Calculate pagination
   const totalOrderPages = Math.ceil(orders.length / ORDERS_PER_PAGE);
-  const paginatedOrders = orders.slice((ordersPage - 1) * ORDERS_PER_PAGE, ordersPage * ORDERS_PER_PAGE);
+  const currentPage = Math.min(Math.max(1, pageFromURL), totalOrderPages || 1);
+
+  // 3. Slice logic
+  const start = (currentPage - 1) * ORDERS_PER_PAGE;
+  const end = start + ORDERS_PER_PAGE;
+  const paginatedOrders = orders.slice(start, end);
+
+  if (loadingOrders) return <PageLoader text="Loading orders" />;
 
   return (
-    <div>
-      <h2 className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-        All orders ({orders.length})
-      </h2>
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
+          All orders ({orders.length})
+        </h2>
+        <span className="text-[10px] text-[var(--muted)] opacity-50">
+          Page {currentPage} of {totalOrderPages}
+        </span>
+      </div>
 
-      {loadingOrders ? (
-        <PageLoader text="Loading orders" />
-      ) : orders.length === 0 ? (
+      {orders.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[var(--border)] px-5 py-10 text-center text-sm text-[var(--muted)]">
           No orders yet.
         </div>
       ) : (
         <>
-          <div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] overflow-hidden">
+          <div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] overflow-hidden bg-black/10">
             {paginatedOrders.map((order) => (
-              <div key={order.id} className="p-4">
+              <div key={order.id} className="p-4 hover:bg-white/[0.02] transition">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div>
                     <p className="text-sm font-semibold">{order.userName || "—"}</p>
                     <p className="text-xs text-[var(--muted)] mt-0.5">{order.userEmail}</p>
-                    <p className="text-xs text-[var(--muted)] opacity-60 mt-0.5">{fmtDate(order.createdAt)}</p>
+                    <p className="text-xs text-[var(--muted)] opacity-60 mt-0.5">
+                      {fmtDate(order.createdAt)}
+                    </p>
                   </div>
+
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold text-[var(--price)]">{fmt(order.total || 0)}</p>
-                    <div className="mt-1 flex items-center gap-1.5 justify-end flex-wrap">
-                      <span className={`text-[0.6rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${order.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
+                    <p className="text-sm font-semibold text-orange-500">
+                      {fmt(order.total || 0)}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1.5 justify-end">
+                      <span className={`text-[0.6rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                        order.status === "pending" ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                      }`}>
                         {order.status || "pending"}
                       </span>
-                      {order.paymentMethod && (
-                        <span className="text-[0.6rem] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-[var(--surface)] text-[var(--muted)]">
-                          {order.paymentMethod}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-3 space-y-2">
                   {(order.items || []).map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-xl bg-[var(--surface)] px-3 py-2">
+                    <div key={i} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-[var(--border)]" />
+                        <img src={item.image} alt={item.name} className="w-8 h-8 rounded-lg object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-[var(--border)] flex-shrink-0" />
+                        <div className="w-8 h-8 rounded-lg bg-white/5" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium truncate">{item.name}</p>
-                        <p className="text-xs text-[var(--muted)]">{fmt(item.price || 0)} × {item.quantity}</p>
+                        <p className="text-[11px] font-medium truncate">{item.name}</p>
+                        <p className="text-[10px] text-[var(--muted)]">{fmt(item.price || 0)} x {item.quantity}</p>
                       </div>
-                      <p className="text-xs font-semibold flex-shrink-0">{fmt((item.price || 0) * item.quantity)}</p>
+                      <p className="text-[11px] font-bold">{fmt((item.price || 0) * item.quantity)}</p>
                     </div>
                   ))}
                 </div>
-
-                {order.paystackRef && (
-                  <p className="mt-2 text-[0.65rem] text-[var(--muted)] opacity-60">Ref: {order.paystackRef}</p>
-                )}
               </div>
             ))}
           </div>
 
-          {totalOrderPages > 1 && (
-            <div className="mt-4 flex items-center justify-between border-t border-[var(--border)] pt-4">
-              <button
-                onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
-                disabled={ordersPage === 1}
-                className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold disabled:opacity-40 transition hover:bg-[var(--surface)]"
-              >← Prev</button>
-              <p className="text-xs text-[var(--muted)]">
-                Page {ordersPage} of {totalOrderPages} · {orders.length} orders
-              </p>
-              <button
-                onClick={() => setOrdersPage((p) => Math.min(totalOrderPages, p + 1))}
-                disabled={ordersPage === totalOrderPages}
-                className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold disabled:opacity-40 transition hover:bg-[var(--surface)]"
-              >Next →</button>
-            </div>
-          )}
+          <Pagination totalPages={totalOrderPages} />
         </>
       )}
     </div>
