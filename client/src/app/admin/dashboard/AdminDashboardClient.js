@@ -40,7 +40,6 @@ export default function AdminDashboardClient() {
     totalItemsSold: 0,
   });
 
-  // --- Data Fetching ---
   const fetchAll = async () => {
     setFetching(true);
     try {
@@ -49,15 +48,11 @@ export default function AdminDashboardClient() {
         getAdminAnalytics(),
         getUsers(),
       ]);
-
       setProducts(Array.isArray(productsData) ? productsData : []);
       setAnalytics(analyticsData);
       setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (err) {
-      setStatus({
-        type: "error",
-        message: err.message || "Unable to load data.",
-      });
+      setStatus({ type: "error", message: err.message || "Unable to load data." });
     } finally {
       setFetching(false);
     }
@@ -75,83 +70,53 @@ export default function AdminDashboardClient() {
     }
   };
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { if (activeTab === "Orders") fetchOrders(); }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab === "Orders") fetchOrders();
-  }, [activeTab]);
-
-  // --- Handlers ---
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-
     const params = new URLSearchParams(searchParams.toString());
     params.delete("page");
-
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 pb-10">
       {status.message && (
-        <div
-          className={`rounded-2xl px-4 py-3 text-sm font-medium ${
-            status.type === "error"
-              ? "bg-red-50 text-red-700 border border-red-200"
-              : "bg-green-50 text-green-700 border border-green-200"
-          }`}
-        >
+        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${status.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"}`}>
           {status.message}
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      {/* Stats Cards: Responsive Grid */}
+      <div className="grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-4">
         {[
-          {
-            label: "Products",
-            value: fetching ? null : analytics.totalProducts || products.length,
-          },
-          {
-            label: "Orders",
-            value: fetching ? null : analytics.totalOrders,
-          },
-          {
-            label: "Revenue",
-            value: fetching ? null : fmt(analytics.totalRevenue),
-          },
-          {
-            label: "Items Sold",
-            value: fetching ? null : analytics.totalItemsSold,
-          },
+          { label: "Products", value: fetching ? null : analytics.totalProducts || products.length },
+          { label: "Orders", value: fetching ? null : analytics.totalOrders },
+          { label: "Revenue", value: fetching ? null : fmt(analytics.totalRevenue) },
+          { label: "Items Sold", value: fetching ? null : analytics.totalItemsSold },
         ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-5"
-          >
-            <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted)]">
+          <div key={label} className="rounded-[1.5rem] sm:rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 sm:p-5 shadow-sm">
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[var(--muted)] truncate">
               {label}
             </p>
-
             {value === null ? (
-              <div className="mt-3 h-7 w-16 rounded-lg bg-[var(--border)] animate-pulse" />
+              <div className="mt-2 h-7 w-16 rounded-lg bg-[var(--border)] animate-pulse" />
             ) : (
-              <p className="mt-3 text-2xl font-semibold">{value}</p>
+              <p className="mt-2 text-xl sm:text-2xl font-semibold truncate">{value}</p>
             )}
           </div>
         ))}
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex gap-2 border-b border-[var(--border)]">
+      {/* Navigation Tabs: Scrollable on very small screens */}
+      <div className="flex gap-4 sm:gap-6 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
-            className={`pb-3 text-sm font-semibold uppercase tracking-[0.16em] transition border-b-2 -mb-px ${
+            className={`pb-3 text-xs sm:text-sm font-bold uppercase tracking-[0.16em] transition border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab
                 ? "border-[var(--foreground)] text-[var(--foreground)]"
                 : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -162,25 +127,13 @@ export default function AdminDashboardClient() {
         ))}
       </div>
 
-      {/* Tab Content */}
       <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
         <div className="min-h-[400px]">
           {activeTab === "Products" && (
-            <ProductsTab
-              products={products}
-              fetching={fetching}
-              onRefresh={fetchAll}
-              onStatusChange={setStatus}
-            />
+            <ProductsTab products={products} fetching={fetching} onRefresh={fetchAll} onStatusChange={setStatus} />
           )}
-
-          {activeTab === "Users" && (
-            <UsersTab users={users} fetching={fetching} />
-          )}
-
-          {activeTab === "Orders" && (
-            <OrdersTab orders={orders} loadingOrders={loadingOrders} />
-          )}
+          {activeTab === "Users" && <UsersTab users={users} fetching={fetching} />}
+          {activeTab === "Orders" && <OrdersTab orders={orders} loadingOrders={loadingOrders} />}
         </div>
       </Suspense>
     </div>
