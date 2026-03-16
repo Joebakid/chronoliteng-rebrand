@@ -19,6 +19,17 @@ export const metadata = {
   },
 };
 
+/**
+ * FIX: Viewport export kills the mobile auto-zoom.
+ * maximumScale: 1 prevents the browser from zooming in on input focus.
+ */
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }) {
   const themeBootScript = `
 (function(){
