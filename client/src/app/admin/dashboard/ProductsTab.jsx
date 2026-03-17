@@ -3,38 +3,52 @@
 import { useState, useEffect } from "react";
 import { createProduct, updateProduct, deleteProduct, toggleProductStock } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
-import PageLoader from "@/components/PageLoader";
 
 const CATEGORIES = ["Watches", "Footwear"];
 const MOVEMENTS = ["Quartz", "Mechanical", "Automatic"];
+const POWER_SOURCES = ["Battery", "Solar", "Kinetic", "Manual Wind"];
 const DEFAULT_CASE_SIZE = "40mm";
 
-const inputCls = "rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base sm:text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] w-full appearance-none shadow-sm";
+const inputCls = "rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] w-full appearance-none shadow-sm";
 const labelCls = "text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ml-1";
 const fmt = (n) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
 
 export default function ProductsTab({ products, fetching, onRefresh, onStatusChange }) {
   const [form, setForm] = useState({
-    name: "", price: "", description: "", category: "Watches",
-    collection: "", caseSize: DEFAULT_CASE_SIZE, movement: "",
-    powerSource: "", strap: "", colors: "", strapColor: "", dialColor: "", images: [],
+    name: "",
+    price: "",
+    description: "",
+    category: "Watches",
+    collection: "",
+    caseSize: DEFAULT_CASE_SIZE,
+    movement: "",
+    powerSource: "",
+    strap: "",
+    strapColor: "",
+    dialColor: "",
+    colors: "", // ADDED BACK: Available colors comma string
+    images: [],
   });
+
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState("");
-  const [togglingId, setTogglingId] = useState("");
   const [editingId, setEditingId] = useState("");
-  const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "", productRevenue: 0 });
+  const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "" });
 
   const isEditing = Boolean(editingId);
-  const isWatchCategory = !form.category || form.category === "Watches";
-
-  useEffect(() => { return () => imagePreviews.forEach(URL.revokeObjectURL); }, [imagePreviews]);
+  const isWatchCategory = form.category === "Watches";
 
   const resetForm = () => {
-    setForm({ name: "", price: "", description: "", category: "Watches", collection: "", caseSize: DEFAULT_CASE_SIZE, movement: "", powerSource: "", strap: "", colors: "", strapColor: "", dialColor: "", images: [] });
-    setImagePreviews([]); setExistingImages([]); setEditingId("");
+    setForm({
+      name: "", price: "", description: "", category: "Watches",
+      collection: "", caseSize: DEFAULT_CASE_SIZE, movement: "",
+      powerSource: "", strap: "", strapColor: "", dialColor: "",
+      colors: "", images: []
+    });
+    setImagePreviews([]);
+    setExistingImages([]);
+    setEditingId("");
   };
 
   const uploadToCloudinary = async (file) => {
@@ -54,19 +68,22 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     try {
       let imageUrls = [];
       if (form.images.length > 0) imageUrls = await Promise.all(form.images.map((file) => uploadToCloudinary(file)));
+      
       const payload = {
         ...form,
         price: Number(form.price),
         colors: form.colors ? form.colors.split(",").map((c) => c.trim()) : [],
         images: isEditing ? [...existingImages, ...imageUrls] : imageUrls,
       };
+
       if (isEditing) { await updateProduct(editingId, payload); } 
       else { await createProduct(payload); }
+      
       resetForm();
-      onStatusChange({ type: "success", message: isEditing ? "Product updated." : "Product uploaded." });
+      onStatusChange({ type: "success", message: isEditing ? "Updated successfully." : "Uploaded successfully." });
       onRefresh();
     } catch (err) {
-      onStatusChange({ type: "error", message: "Operation failed." });
+      onStatusChange({ type: "error", message: "Action failed." });
     } finally {
       setLoading(false);
     }
@@ -76,11 +93,10 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     setEditingId(product.id);
     setExistingImages(product.images || []);
     setForm({
-      name: product.name || "", price: String(product.price || ""),
-      description: product.description || "", category: product.category || "Watches",
-      collection: product.collection || "", caseSize: product.caseSize || DEFAULT_CASE_SIZE,
-      movement: product.movement || "", strap: product.strap || "",
+      ...product,
+      price: String(product.price || ""),
       colors: Array.isArray(product.colors) ? product.colors.join(", ") : "",
+      images: []
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -92,42 +108,52 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
       <ConfirmModal
         open={confirmModal.open}
         title="Delete product?"
-        message={`"${confirmModal.productName}" will be permanently removed.`}
+        message={`"${confirmModal.productName}" will be deleted.`}
         confirmLabel="Delete" danger onConfirm={() => {
           deleteProduct(confirmModal.productId).then(() => { onRefresh(); setConfirmModal({open: false}); });
         }}
         onCancel={() => setConfirmModal({ open: false })}
       />
 
-      {/* Upload Form */}
       <div className="order-1 lg:sticky lg:top-24 space-y-6">
-        <div className="flex items-center justify-between">
-           <h2 className="text-sm font-bold uppercase tracking-[0.22em] text-[var(--muted)]">{isEditing ? "Edit product" : "New upload"}</h2>
-           {isEditing && <button onClick={resetForm} className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] underline">Discard</button>}
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-sm font-bold uppercase tracking-[0.22em] text-[var(--muted)]">{isEditing ? "Modify Product" : "New Entry"}</h2>
+          {isEditing && <button type="button" onClick={resetForm} className="text-[10px] font-bold uppercase text-[var(--accent)] underline">Discard</button>}
         </div>
 
         <form onSubmit={handleSubmit} className="grid gap-5">
-          <div className="space-y-1.5">
-            <label className={labelCls}>Product name</label>
-            <input value={form.name} onChange={setField("name")} placeholder="e.g. Chronolite Executive" required className={inputCls} />
+          {/* Section 1: Basic Details */}
+          <div className="space-y-4 rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)]/30 p-5 shadow-sm">
+            <div className="space-y-1.5">
+              <label className={labelCls}>Product name</label>
+              <input value={form.name} onChange={setField("name")} placeholder="Chronolite Elite" required className={inputCls} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className={labelCls}>Price (NGN)</label>
+                <input type="number" value={form.price} onChange={setField("price")} required className={inputCls} />
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelCls}>Category</label>
+                <select value={form.category} onChange={setField("category")} className={inputCls}>
+                  {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className={labelCls}>Description</label>
+              <textarea value={form.description} onChange={setField("description")} rows={3} placeholder="Tell customers about this item..." className={`${inputCls} rounded-2xl resize-none`} />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className={labelCls}>Price (NGN)</label>
-              <input type="number" value={form.price} onChange={setField("price")} required className={inputCls} />
-            </div>
-            <div className="space-y-1.5">
-              <label className={labelCls}>Category</label>
-              <select value={form.category} onChange={setField("category")} className={inputCls}>
-                {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </div>
-          </div>
-
+          {/* Section 2: Technical Specifications */}
           {isWatchCategory && (
-            <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-5 space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-5 space-y-5 shadow-sm">
+               <p className="text-[9px] font-black uppercase text-[var(--accent)] tracking-widest px-1">Detailed Specifications</p>
+               
+               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className={labelCls}>Movement</label>
                   <select value={form.movement} onChange={setField("movement")} className={inputCls}>
@@ -136,15 +162,47 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className={labelCls}>Case size</label>
+                  <label className={labelCls}>Powered By</label>
+                  <select value={form.powerSource} onChange={setField("powerSource")} className={inputCls}>
+                    <option value="">Select...</option>
+                    {POWER_SOURCES.map((ps) => <option key={ps} value={ps}>{ps}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Dial Color</label>
+                  <input value={form.dialColor} onChange={setField("dialColor")} placeholder="e.g. Navy Blue" className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Case Size</label>
                   <input value={form.caseSize} onChange={setField("caseSize")} className={inputCls} />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Strap Material</label>
+                  <input value={form.strap} onChange={setField("strap")} placeholder="e.g. Silicone" className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className={labelCls}>Strap Color</label>
+                  <input value={form.strapColor} onChange={setField("strapColor")} placeholder="e.g. Matte Black" className={inputCls} />
+                </div>
+              </div>
+
+              {/* AVAILABLE COLORS FIELD (RESTORED) */}
+              <div className="space-y-1.5">
+                <label className={labelCls}>Available Variants (Colors)</label>
+                <input value={form.colors} onChange={setField("colors")} placeholder="Gold, Silver, Black (comma separated)" className={inputCls} />
               </div>
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className={labelCls}>Images</label>
+          {/* Section 3: Media */}
+          <div className="space-y-1.5 px-1">
+            <label className={labelCls}>Product Gallery</label>
             <div className="relative group">
                <input type="file" multiple accept="image/*" onChange={(e) => {
                  const files = Array.from(e.target.files || []);
@@ -152,36 +210,38 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
                  setImagePreviews(files.map(f => URL.createObjectURL(f)));
                }} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                <div className="rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center group-hover:border-[var(--accent)] transition-colors">
-                  <p className="text-sm font-semibold text-[var(--muted)]">Tap to upload photos</p>
+                  <p className="text-xs font-semibold text-[var(--muted)]">
+                    {form.images.length > 0 ? `${form.images.length} files ready` : "Click to select images"}
+                  </p>
                </div>
             </div>
           </div>
 
-          <button disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-base font-bold text-[var(--surface-strong)] shadow-xl transition active:scale-95">
-            {loading ? "Processing..." : isEditing ? "Update Product" : "Upload Product"}
+          <button disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-2xl transition active:scale-95 disabled:opacity-50">
+            {loading ? "Processing..." : isEditing ? "Save Changes" : "Create Product"}
           </button>
         </form>
       </div>
 
-      {/* Inventory List */}
+      {/* Inventory Display */}
       <div className="order-2 space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-[0.22em] text-[var(--muted)] flex justify-between px-2">
-          <span>Inventory</span>
-          <span>{products.length} Items</span>
-        </h2>
+        <div className="flex items-center justify-between px-2 mb-2">
+           <h2 className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-[var(--muted)]">Inventory</h2>
+           <span className="text-[10px] font-bold text-[var(--accent)]">{products.length} Styles</span>
+        </div>
         {products.map((p) => (
           <div key={p.id} className="group rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm">
             <div className="flex items-center gap-4 mb-4">
-              <img src={p.images?.[0]} className="w-16 h-16 rounded-2xl object-cover bg-white" alt="" />
+              <img src={p.images?.[0]} className="w-16 h-16 rounded-2xl object-cover bg-white border border-[var(--border)]" alt={p.name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">{p.name}</p>
-                <p className="text-sm text-[var(--muted)]">{fmt(p.price)}</p>
+                <p className="text-sm font-medium text-[var(--accent)]">{fmt(p.price)}</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => toggleProductStock(p.id, !p.inStock).then(onRefresh)} className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2.5 text-[10px] font-bold uppercase">{p.inStock ? "Hide" : "Show"}</button>
-              <button onClick={() => handleEdit(p)} className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2.5 text-[10px] font-bold uppercase">Edit</button>
-              <button onClick={() => setConfirmModal({open: true, productId: p.id, productName: p.name})} className="rounded-xl bg-red-50 border border-red-100 py-2.5 text-[10px] font-bold uppercase text-red-600">Delete</button>
+              <button onClick={() => toggleProductStock(p.id, !p.inStock).then(onRefresh)} className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2 text-[10px] font-bold uppercase">{p.inStock ? "Hide" : "Show"}</button>
+              <button onClick={() => handleEdit(p)} className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2 text-[10px] font-bold uppercase">Edit</button>
+              <button onClick={() => setConfirmModal({open: true, productId: p.id, productName: p.name})} className="rounded-xl bg-red-50 border border-red-100 py-2 text-[10px] font-bold uppercase text-red-600">Del</button>
             </div>
           </div>
         ))}

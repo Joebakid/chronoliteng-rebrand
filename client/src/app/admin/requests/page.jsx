@@ -16,6 +16,7 @@ import { db } from "@/lib/firebase";
 const TYPE_LABELS = {
   product_request: "Product Request",
   distributor: "Distributor Application",
+  general_support: "General Support",
 };
 
 export default function AdminRequestsPage() {

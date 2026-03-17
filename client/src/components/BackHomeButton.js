@@ -1,17 +1,16 @@
-import Link from "next/link";
+"use client";
 
-export default function BackHomeButton({
-  href = "/",
-  label = "Back to Home",
-  className = "",
-}) {
+import Link from "next/link";
+import { HiArrowLeft } from "react-icons/hi2"; // The React Icon
+
+export default function BackHomeButton() {
   return (
-    <Link
-      href={href}
-      className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--foreground)] transition hover:bg-[var(--background-strong)] ${className}`.trim()}
+    <Link 
+      href="/" 
+      className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-5 py-2.5 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[var(--foreground)] transition-all hover:bg-[var(--surface-strong)] hover:scale-105 active:scale-95 shadow-sm"
     >
-      <span aria-hidden="true">←</span>
-      {label}
+      <HiArrowLeft className="text-sm text-[var(--accent)]" />
+      <span>Back to Home</span>
     </Link>
   );
 }

@@ -7,9 +7,9 @@ import BackHomeButton from "@/components/BackHomeButton";
 import { useAppContext } from "@/app/state/AppContext";
 import { getPurchaseHistory } from "@/lib/purchaseHistory";
 import { getUserRequests } from "@/lib/api";
-import AccountInfo from "./AccountInfo";
-import PurchaseHistory from "./PurchaseHistory";
-import RequestsSection from "./RequestsSection";
+import AccountInfo from "./components/AccountInfo";
+import PurchaseHistory from "./components/PurchaseHistory";
+import RequestsSection from "./components/RequestsSection";
 
 export default function ProfilePage() {
   const router = useRouter();

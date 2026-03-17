@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import PageLoader from "@/components/PageLoader";
 import Pagination from "@/components/Pagination";
 
-const ORDERS_PER_PAGE = 5;
+const ORDERS_PER_PAGE = 3;
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-NG", {
