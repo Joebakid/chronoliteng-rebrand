@@ -19,14 +19,14 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     price: "",
     description: "",
     category: "Watches",
-    collection: "",
+    collection: "", // Field exists here
     caseSize: DEFAULT_CASE_SIZE,
     movement: "",
     powerSource: "",
     strap: "",
     strapColor: "",
     dialColor: "",
-    colors: "", // ADDED BACK: Available colors comma string
+    colors: "", 
     images: [],
   });
 
@@ -95,6 +95,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     setForm({
       ...product,
       price: String(product.price || ""),
+      collection: product.collection || "", // Ensure collection is loaded during edit
       colors: Array.isArray(product.colors) ? product.colors.join(", ") : "",
       images: []
     });
@@ -140,6 +141,17 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
                   {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
+            </div>
+
+            {/* ADDED COLLECTION FIELD HERE */}
+            <div className="space-y-1.5">
+              <label className={labelCls}>Collection / Brand Name</label>
+              <input 
+                value={form.collection} 
+                onChange={setField("collection")} 
+                placeholder="e.g. CASIO, TOMI, POEDAGAR" 
+                className={inputCls} 
+              />
             </div>
 
             <div className="space-y-1.5">
@@ -192,7 +204,6 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
                 </div>
               </div>
 
-              {/* AVAILABLE COLORS FIELD (RESTORED) */}
               <div className="space-y-1.5">
                 <label className={labelCls}>Available Variants (Colors)</label>
                 <input value={form.colors} onChange={setField("colors")} placeholder="Gold, Silver, Black (comma separated)" className={inputCls} />
@@ -235,6 +246,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
               <img src={p.images?.[0]} className="w-16 h-16 rounded-2xl object-cover bg-white border border-[var(--border)]" alt={p.name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">{p.name}</p>
+                <p className="text-[10px] uppercase font-bold text-[var(--muted)] tracking-wider">{p.collection || "No Brand"}</p>
                 <p className="text-sm font-medium text-[var(--accent)]">{fmt(p.price)}</p>
               </div>
             </div>

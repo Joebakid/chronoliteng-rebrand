@@ -33,7 +33,7 @@ const formatFirebaseDoc = (d) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
-    AUTH
+    AUTH & GENERAL FETCH
 ───────────────────────────────────────────────────────────── */
 
 export async function apiFetch(endpoint, options = {}) {
@@ -71,25 +71,57 @@ export async function getProducts() {
   return snap.docs.map(formatFirebaseDoc);
 }
 
-export async function getProduct(slug) {
-  const q = query(collection(db, "products"), where("slug", "==", slug));
-  const snap = await getDocs(q);
-  if (snap.empty) throw new Error("Product not found");
-  return formatFirebaseDoc(snap.docs[0]);
+/**
+ * UPDATED: Aggressive lookup.
+ * Try direct ID first (best for unique items like Tomi), then try Slug.
+ */
+export async function getProduct(identifier) {
+  if (!identifier) throw new Error("No identifier provided");
+
+  // 1. ATTEMPT 1: Try finding by direct Firebase Document ID
+  try {
+    const docRef = doc(db, "products", identifier);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return formatFirebaseDoc(docSnap);
+    }
+  } catch (err) {
+    // Fail silently to try slug next
+  }
+
+  // 2. ATTEMPT 2: Try finding by slug
+  try {
+    const q = query(collection(db, "products"), where("slug", "==", identifier));
+    const snap = await getDocs(q);
+    
+    if (!snap.empty) {
+      return formatFirebaseDoc(snap.docs[0]);
+    }
+  } catch (err) {
+    console.error("Slug query failed:", err);
+  }
+
+  throw new Error("Product not found");
 }
 
+/**
+ * FIXED: Generates cleaner, unique slugs using a timestamp suffix
+ */
 export async function createProduct(data) {
-  const slug =
-    data.slug ||
-    data.name
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]+/g, "");
+  const baseSlug = data.name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") 
+    .replace(/[\s_-]+/g, "-") 
+    .replace(/^-+|-+$/g, "");
+
+  const uniqueSuffix = Date.now().toString(36).slice(-4);
+  const slug = `${baseSlug}-${uniqueSuffix}`;
 
   const ref = await addDoc(collection(db, "products"), {
     ...data,
     slug,
-    inStock: false,
+    inStock: true,
     createdAt: serverTimestamp(),
   });
 
@@ -136,13 +168,12 @@ export async function createOrder(orderData, user) {
     userEmail: user?.email || "",
     userName: user?.name || "",
     items: orderData.items.map((item) => ({
-      slug: item.slug,
+      slug: item.slug || item.id,
       name: item.name,
       price: Number(item.price || 0),
       quantity: item.quantity,
       collection: item.collection || "",
       image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "",
-      images: Array.isArray(item.images) ? item.images : [],
     })),
     status: "pending",
     createdAt: serverTimestamp(),
@@ -186,7 +217,7 @@ export async function getUsers() {
 }
 
 /* ─────────────────────────────────────────────────────────────
-    REQUESTS / CHAT MESSAGES
+    REQUESTS (Support Hub / Chat)
 ───────────────────────────────────────────────────────────── */
 
 export async function createRequest(user, { type, message, imageUrl }) {
@@ -243,7 +274,6 @@ export async function sendMessage(requestId, { from, text, imageUrl, replyTo }) 
     sentAt: new Date().toISOString(),
   };
 
-  // Add optional fields only if they have data to avoid Firebase arrayUnion errors
   if (imageUrl) message.imageUrl = imageUrl;
   if (replyTo) message.replyTo = replyTo;
 
@@ -256,9 +286,6 @@ export async function sendMessage(requestId, { from, text, imageUrl, replyTo }) 
   return true;
 }
 
-/**
- * Deletes a single message by filtering the messages array
- */
 export async function deleteMessage(requestId, messageToDelete) {
   const ref = doc(db, "requests", requestId);
   const snap = await getDoc(ref);
@@ -266,7 +293,6 @@ export async function deleteMessage(requestId, messageToDelete) {
   if (!snap.exists()) throw new Error("Request not found");
 
   const data = snap.data();
-  // Filter by both sentAt and text to ensure we don't delete identical-looking messages
   const filteredMessages = (data.messages || []).filter(
     (m) => !(m.sentAt === messageToDelete.sentAt && m.text === messageToDelete.text)
   );
@@ -279,9 +305,6 @@ export async function deleteMessage(requestId, messageToDelete) {
   return true;
 }
 
-/**
- * Deletes the entire request document
- */
 export async function deleteRequest(requestId) {
   await deleteDoc(doc(db, "requests", requestId));
   return true;
