@@ -28,12 +28,12 @@ export default function ProductDetailsView({ product }) {
         
         {/* LEFT: GALLERY SECTION - Border REMOVED */}
         <div className="lg:sticky lg:top-28">
-          <div className="aspect-square w-full overflow-hidden rounded-[3rem] bg-[var(--surface-strong)] p-6 shadow-2xl sm:p-12">
+          <div className="aspect-square w-full overflow-hidden rounded-[3rem]   p-6 shadow-2xl sm:p-12">
             <ProductGallery
               imageUrls={resolveProductImages(product)}
               fallbackUrl={resolveProductImage(product)}
               className="h-full w-full object-contain"
-              colorIndicators={(product.colors || []).map(resolveColorSwatch)}
+            //   colorIndicators={(product.colors || []).map(resolveColorSwatch)}
             />
           </div>
         </div>
@@ -81,16 +81,19 @@ export default function ProductDetailsView({ product }) {
 
           {/* Simplified Checkout Layout (Updated) */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-[var(--border)] pt-10">
-            <div>
-              <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-1">Retail Price</p>
-              <p className="text-4xl font-bold text-[var(--price)]">
-                {new Intl.NumberFormat("en-NG", {
-                  style: "currency",
-                  currency: "NGN",
-                  maximumFractionDigits: 0,
-                }).format(product.price)}
-              </p>
-            </div>
+          <div className="flex flex-col items-start text-left">
+  <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-1">
+    Retail Price
+  </p>
+
+  <p className="text-4xl font-bold text-[var(--price)]">
+    {new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 0,
+    }).format(product.price)}
+  </p>
+</div>
             
             {/* Reverting to your original AddToCartButton component */}
             <AddToCartButton product={product} />
