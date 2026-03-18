@@ -1,8 +1,13 @@
 const functions = require("firebase-functions");
-const { sendOrderConfirmationEmail, sendNewOrderAlertEmail } = require("../lib/resend");
+const { 
+  resendKeySecret, 
+  sendOrderConfirmationEmail, 
+  sendNewOrderAlertEmail 
+} = require("../lib/resend");
 
-exports.onOrderCreate = functions.firestore
-  .document("orders/{orderId}")
+exports.onOrderCreate = functions
+  .runWith({ secrets: [resendKeySecret] })
+  .firestore.document("orders/{orderId}")
   .onCreate(async (snap, context) => {
     const order = snap.data();
     const orderId = context.params.orderId;

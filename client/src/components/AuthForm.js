@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
-import { getFunctions, httpsCallable } from "firebase/functions";
 
 // ── view states: "login" | "register" | "reset" | "reset_sent"
 export default function AuthForm({ mode }) {
@@ -58,10 +57,24 @@ export default function AuthForm({ mode }) {
     try {
       if (isRegister) {
         const data = await signUp({ name: form.name, email: form.email, password: form.password });
-        setInfoMessage(data?.message || "Check your email for confirmation.");
+        
+        // TRIGGER WELCOME EMAIL VIA LOCAL API
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: form.email,
+            subject: 'Welcome to Chronoliteng',
+            htmlType: 'welcome',
+            data: { name: form.name }
+          }),
+        }).catch(err => console.error("Welcome email failed:", err));
+
+        setInfoMessage(data?.message || "Account created! Welcome to Chronolite.");
         setForm({ name: "", email: "", password: "" });
         return;
       }
+
       const firebaseUser = await signIn({ email: form.email, password: form.password });
       if (firebaseUser.isAdmin) { router.push("/admin/dashboard"); return; }
       router.push(searchParams.get("next") || "/account/profile");
@@ -72,43 +85,48 @@ export default function AuthForm({ mode }) {
     }
   }
 
-  // ── Password reset submit
+  // ── Password reset submit (Now using local API to bypass Firebase Blaze)
   async function handleResetSubmit(e) {
     e.preventDefault();
-    if (!resetEmail.trim()) return;
+    const targetEmail = resetEmail.trim();
+    if (!targetEmail) return;
     setLoading(true);
     clearMessages();
+    
     try {
-      const functions = getFunctions();
-      const sendPasswordReset = httpsCallable(functions, "sendPasswordReset");
-      await sendPasswordReset({ email: resetEmail.trim() });
+      // Call our local API route instead of Firebase Functions
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: targetEmail,
+          subject: 'Reset your Chronoliteng password',
+          htmlType: 'reset',
+          data: { email: targetEmail }
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to send reset email");
       setView("reset_sent");
     } catch (err) {
-      // Always show success — never reveal whether email exists
+      console.error("Reset Error:", err);
+      // Still show success to prevent email enumeration
       setView("reset_sent");
     } finally {
       setLoading(false);
     }
   }
 
-  // ────────────────────────────────────────────────
-  // RESET SENT confirmation screen
-  // ────────────────────────────────────────────────
   if (isResetSent) {
     return (
       <div className="mx-auto w-full max-w-md rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-[var(--shadow)] sm:p-8 text-center">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--surface)] border border-[var(--border)] text-2xl">
           ✉️
         </div>
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-          Check your inbox
-        </p>
-        <h1 className="font-display mt-4 text-2xl font-semibold text-[var(--foreground)]">
-          Reset link sent
-        </h1>
+        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">Check your inbox</p>
+        <h1 className="font-display mt-4 text-2xl font-semibold text-[var(--foreground)]">Reset link sent</h1>
         <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-          If <strong className="text-[var(--foreground)]">{resetEmail}</strong> has an account,
-          you'll receive a password reset link shortly. Check your spam folder if it doesn't arrive.
+          If <strong className="text-[var(--foreground)]">{resetEmail}</strong> has an account, you'll receive a link shortly.
         </p>
         <button
           onClick={() => { setView("login"); setResetEmail(""); clearMessages(); }}
@@ -120,68 +138,33 @@ export default function AuthForm({ mode }) {
     );
   }
 
-  // ────────────────────────────────────────────────
-  // RESET PASSWORD form
-  // ────────────────────────────────────────────────
   if (isReset) {
     return (
       <div className="mx-auto w-full max-w-md rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-[var(--shadow)] sm:p-8">
-        <p className="text-center text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-          Reset password
-        </p>
-        <h1 className="font-display mt-4 text-center text-3xl font-semibold text-[var(--foreground)]">
-          Forgot your password?
-        </h1>
-        <p className="mt-3 text-center text-sm leading-6 text-[var(--muted)]">
-          Enter the email address on your account and we'll send you a reset link.
-        </p>
-
-        {error && (
-          <div className="mt-6 rounded-2xl border border-[rgba(161,69,59,0.2)] bg-[rgba(161,69,59,0.08)] p-3 text-sm text-[var(--danger)]">
-            {error}
-          </div>
-        )}
-
+        <p className="text-center text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">Reset password</p>
+        <h1 className="font-display mt-4 text-center text-3xl font-semibold text-[var(--foreground)]">Forgot your password?</h1>
+        <p className="mt-3 text-center text-sm leading-6 text-[var(--muted)]">Enter your email and we'll send you a reset link.</p>
+        {error && <div className="mt-6 rounded-2xl border border-[rgba(161,69,59,0.2)] bg-[rgba(161,69,59,0.08)] p-3 text-sm text-[var(--danger)]">{error}</div>}
         <form onSubmit={handleResetSubmit} className="mt-8 space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
-              Email address
-            </label>
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Email address</label>
             <input
-              type="email"
-              required
-              value={resetEmail}
-              placeholder="you@example.com"
+              type="email" required value={resetEmail} placeholder="you@example.com"
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
               onChange={(e) => setResetEmail(e.target.value)}
             />
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-full bg-[var(--foreground)] py-3 font-medium text-[var(--surface-strong)] transition hover:opacity-90 disabled:opacity-60"
-          >
+          <button type="submit" disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-3 font-medium text-[var(--surface-strong)] transition hover:opacity-90 disabled:opacity-60">
             {loading ? "Sending..." : "Send reset link"}
           </button>
         </form>
-
         <p className="mt-6 text-center text-sm text-[var(--muted)]">
-          Remember it?{" "}
-          <button
-            onClick={() => { setView("login"); clearMessages(); }}
-            className="font-semibold text-[var(--foreground)] underline-offset-2 hover:underline"
-          >
-            Back to sign in
-          </button>
+          Remember it? <button onClick={() => { setView("login"); clearMessages(); }} className="font-semibold text-[var(--foreground)] underline-offset-2 hover:underline">Back to sign in</button>
         </p>
       </div>
     );
   }
 
-  // ────────────────────────────────────────────────
-  // LOGIN / REGISTER form
-  // ────────────────────────────────────────────────
   return (
     <div className="mx-auto w-full max-w-md rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-[var(--shadow)] sm:p-8">
       <p className="text-center text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
@@ -191,109 +174,51 @@ export default function AuthForm({ mode }) {
         {isRegister ? "Open your Chronolite account" : "Welcome back"}
       </h1>
       <p className="mt-3 text-center text-sm leading-6 text-[var(--muted)]">
-        {isRegister
-          ? "Create an account for faster access to your saved details. Checkout still works without an account."
-          : "Sign in to manage your account details. Shopping remains available without signing in."}
+        {isRegister ? "Join the inner circle of Chronolite." : "Sign in to manage your premium collections."}
       </p>
 
-      {error && (
-        <div className="mt-6 rounded-2xl border border-[rgba(161,69,59,0.2)] bg-[rgba(161,69,59,0.08)] p-3 text-sm text-[var(--danger)]">
-          {error}
-        </div>
-      )}
-      {infoMessage && (
-        <div className="mt-4 rounded-2xl border border-[rgba(8,112,152,0.2)] bg-[rgba(8,112,152,0.08)] p-3 text-sm text-[var(--accent)]">
-          {infoMessage}
-        </div>
-      )}
+      {error && <div className="mt-6 rounded-2xl border border-[rgba(161,69,59,0.2)] bg-[rgba(161,69,59,0.08)] p-3 text-sm text-[var(--danger)]">{error}</div>}
+      {infoMessage && <div className="mt-4 rounded-2xl border border-[rgba(8,112,152,0.2)] bg-[rgba(8,112,152,0.08)] p-3 text-sm text-[var(--accent)]">{infoMessage}</div>}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         {isRegister && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
-              Full name
-            </label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              placeholder="Joseph Bawo"
-              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
+            <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Full name</label>
+            <input type="text" required value={form.name} placeholder="Joseph Bawo" className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+              onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
         )}
-
         <div>
-          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">
-            Email
-          </label>
-          <input
-            type="email"
-            required
-            value={form.email}
-            placeholder="you@example.com"
-            className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
+          <label className="mb-2 block text-sm font-medium text-[var(--foreground)]">Email</label>
+          <input type="email" required value={form.email} placeholder="you@example.com" className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+            onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
-
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium text-[var(--foreground)]">
-              Password
-            </label>
+            <label className="text-sm font-medium text-[var(--foreground)]">Password</label>
             {!isRegister && (
-              <button
-                type="button"
-                onClick={() => { setView("reset"); clearMessages(); }}
-                className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] transition"
-              >
+              <button type="button" onClick={() => { setView("reset"); clearMessages(); }} className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--foreground)] transition">
                 Forgot password?
               </button>
             )}
           </div>
           <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              value={form.password}
-              placeholder="Enter your password"
+            <input type={showPassword ? "text" : "password"} required value={form.password} placeholder="Enter your password"
               className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 pr-20 text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((c) => !c)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]"
-            >
+              onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <button type="button" onClick={() => setShowPassword((c) => !c)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
               {showPassword ? "Hide" : "Show"}
             </button>
           </div>
         </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-full bg-[var(--foreground)] py-3 font-medium text-[var(--surface-strong)] transition hover:opacity-90 disabled:opacity-60"
-        >
-          {loading
-            ? isRegister ? "Creating account..." : "Signing in..."
-            : isRegister ? "Create account" : "Sign in"}
+        <button type="submit" disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-3 font-medium text-[var(--surface-strong)] transition hover:opacity-90 disabled:opacity-60">
+          {loading ? (isRegister ? "Creating..." : "Signing in...") : (isRegister ? "Create account" : "Sign in")}
         </button>
       </form>
 
-      {/* Switch between login / register */}
       <p className="mt-6 text-center text-sm text-[var(--muted)]">
         {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
-        <button
-          onClick={() => {
-            setView(isRegister ? "login" : "register");
-            setForm({ name: "", email: "", password: "" });
-            clearMessages();
-          }}
-          className="font-semibold text-[var(--foreground)] underline-offset-2 hover:underline"
-        >
+        <button onClick={() => { setView(isRegister ? "login" : "register"); setForm({ name: "", email: "", password: "" }); clearMessages(); }} className="font-semibold text-[var(--foreground)] underline-offset-2 hover:underline">
           {isRegister ? "Sign in" : "Create one"}
         </button>
       </p>
