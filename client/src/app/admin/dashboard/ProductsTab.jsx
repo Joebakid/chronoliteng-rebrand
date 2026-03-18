@@ -19,7 +19,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     price: "",
     description: "",
     category: "Watches",
-    collection: "", // Field exists here
+    collection: "",
     caseSize: DEFAULT_CASE_SIZE,
     movement: "",
     powerSource: "",
@@ -35,9 +35,19 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "" });
+  
+  // New state for the full-screen viewer
+  const [selectedImageView, setSelectedImageView] = useState(null);
 
   const isEditing = Boolean(editingId);
   const isWatchCategory = form.category === "Watches";
+
+  // Cleanup blob URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviews]);
 
   const resetForm = () => {
     setForm({
@@ -95,14 +105,24 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
     setForm({
       ...product,
       price: String(product.price || ""),
-      collection: product.collection || "", // Ensure collection is loaded during edit
+      collection: product.collection || "",
       colors: Array.isArray(product.colors) ? product.colors.join(", ") : "",
       images: []
     });
+    setImagePreviews([]); // Reset local previews when starting a fresh edit
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const setField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    setForm(p => ({...p, images: files}));
+    
+    // Revoke old previews before setting new ones
+    imagePreviews.forEach(url => URL.revokeObjectURL(url));
+    setImagePreviews(files.map(f => URL.createObjectURL(f)));
+  };
 
   return (
     <div className="flex flex-col gap-10 lg:grid lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_450px] lg:items-start">
@@ -115,6 +135,22 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
         }}
         onCancel={() => setConfirmModal({ open: false })}
       />
+
+      {/* Lightbox Overlay */}
+      {selectedImageView && (
+        <div 
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 p-6 backdrop-blur-md animate-in fade-in duration-300"
+          onClick={() => setSelectedImageView(null)}
+        >
+          <button className="absolute top-10 right-10 text-white/50 hover:text-white text-3xl transition">&times;</button>
+          <img 
+            src={selectedImageView} 
+            className="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl" 
+            alt="Product Preview Large"
+          />
+          <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">Click anywhere to close</p>
+        </div>
+      )}
 
       <div className="order-1 lg:sticky lg:top-24 space-y-6">
         <div className="flex items-center justify-between px-1">
@@ -143,15 +179,9 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
               </div>
             </div>
 
-            {/* ADDED COLLECTION FIELD HERE */}
             <div className="space-y-1.5">
               <label className={labelCls}>Collection / Brand Name</label>
-              <input 
-                value={form.collection} 
-                onChange={setField("collection")} 
-                placeholder="e.g. CASIO, TOMI, POEDAGAR" 
-                className={inputCls} 
-              />
+              <input value={form.collection} onChange={setField("collection")} placeholder="e.g. CASIO, TOMI, POEDAGAR" className={inputCls} />
             </div>
 
             <div className="space-y-1.5">
@@ -211,21 +241,43 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
             </div>
           )}
 
-          {/* Section 3: Media */}
-          <div className="space-y-1.5 px-1">
+          {/* Section 3: Media Gallery with Previews */}
+          <div className="space-y-4 px-1">
             <label className={labelCls}>Product Gallery</label>
+            
             <div className="relative group">
-               <input type="file" multiple accept="image/*" onChange={(e) => {
-                 const files = Array.from(e.target.files || []);
-                 setForm(p => ({...p, images: files}));
-                 setImagePreviews(files.map(f => URL.createObjectURL(f)));
-               }} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
+               <input type="file" multiple accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
                <div className="rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--surface)] p-8 text-center group-hover:border-[var(--accent)] transition-colors">
                   <p className="text-xs font-semibold text-[var(--muted)]">
-                    {form.images.length > 0 ? `${form.images.length} files ready` : "Click to select images"}
+                    {form.images.length > 0 || existingImages.length > 0 ? "Manage or Add Images" : "Click to select images"}
                   </p>
                </div>
             </div>
+
+            {/* Visual Preview Grid */}
+            {(imagePreviews.length > 0 || existingImages.length > 0) && (
+              <div className="grid grid-cols-4 gap-3 pt-2">
+                {/* Existing Images from Server */}
+                {existingImages.map((url, i) => (
+                  <div key={`exist-${i}`} onClick={() => setSelectedImageView(url)} className="relative aspect-square cursor-pointer overflow-hidden rounded-xl border border-[var(--border)] bg-white transition hover:scale-[1.05] hover:ring-2 hover:ring-[var(--accent)]">
+                    <img src={url} className="h-full w-full object-cover" alt="Existing" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 hover:opacity-100 transition-opacity">
+                      <span className="text-[7px] font-black uppercase text-white bg-black/40 px-2 py-1 rounded-full">View</span>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* New Local Previews */}
+                {imagePreviews.map((url, i) => (
+                  <div key={`new-${i}`} onClick={() => setSelectedImageView(url)} className="relative aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-[var(--accent)] bg-white transition hover:scale-[1.05]">
+                    <img src={url} className="h-full w-full object-cover" alt="New Preview" />
+                    <div className="absolute top-1 right-1 bg-[var(--accent)] rounded-full px-1.5 py-0.5 shadow-lg">
+                      <span className="text-[6px] text-white font-bold uppercase tracking-tighter">New</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <button disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-2xl transition active:scale-95 disabled:opacity-50">
