@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  sendEmailVerification,
+  updateProfile,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -37,24 +37,28 @@ export function AppProvider({ children }) {
 
   // Firebase auth state listener
   useEffect(() => {
+    console.log("--- Auth State Listener Triggered ---");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const snap = await getDoc(doc(db, "users", firebaseUser.uid));
-        const profile = snap.exists() ? snap.data() : {};
-        const isAdmin = profile.isAdmin || false;
+        console.log("Firebase User detected:", firebaseUser.email);
+        try {
+          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+          const profile = snap.exists() ? snap.data() : {};
+          const isAdmin = profile.isAdmin || false;
 
-        // Admins bypass email verification requirement
-        if (firebaseUser.emailVerified || isAdmin) {
+          // REMOVED: Email verification requirement to allow instant login
           setUser({
             id: firebaseUser.uid,
-            name: profile.name || firebaseUser.displayName || "",
+            name: profile.name || firebaseUser.displayName || "Member",
             email: firebaseUser.email,
             isAdmin,
           });
-        } else {
-          setUser(null);
+          console.log("App User State Set:", firebaseUser.email, "Admin:", isAdmin);
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
         }
       } else {
+        console.log("No Firebase User - User state set to null");
         setUser(null);
       }
       setAuthLoading(false);
@@ -67,7 +71,9 @@ export function AppProvider({ children }) {
     try {
       const savedCart = window.localStorage.getItem(STORAGE_KEY);
       if (savedCart) setCartItems(JSON.parse(savedCart));
-    } catch {}
+    } catch (err) {
+      console.error("Cart Load Error:", err);
+    }
   }, []);
 
   // Save cart
@@ -76,34 +82,52 @@ export function AppProvider({ children }) {
   }, [cartItems]);
 
   async function signUp({ name, email, password }) {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    await setDoc(doc(db, "users", credential.user.uid), {
-      name,
-      email,
-      isAdmin: false,
-      createdAt: new Date().toISOString(),
-    });
-    await sendEmailVerification(credential.user);
-    await firebaseSignOut(auth);
-    return { message: "Registration successful. Check your email to confirm before logging in." };
+    console.log("--- Starting SignUp Process ---");
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("Firebase Auth User Created:", credential.user.uid);
+
+      // Update Firebase Profile Display Name
+      await updateProfile(credential.user, { displayName: name });
+
+      // Save to Firestore
+      await setDoc(doc(db, "users", credential.user.uid), {
+        name,
+        email,
+        isAdmin: false,
+        createdAt: new Date().toISOString(),
+      });
+      console.log("Firestore User Document Created");
+
+      // NOTE: We no longer sign out here. We let the user stay logged in.
+      return { message: "Welcome to Chronolite!" };
+    } catch (err) {
+      console.error("SignUp Error:", err.code, err.message);
+      throw err;
+    }
   }
 
   async function signIn({ email, password }) {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    const snap = await getDoc(doc(db, "users", credential.user.uid));
-    const profile = snap.exists() ? snap.data() : {};
-    const isAdmin = profile.isAdmin || false;
+    console.log("--- Starting SignIn Process ---");
+    try {
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Firebase Auth SignIn Successful");
 
-    // Non-admin users must verify email
-    if (!credential.user.emailVerified && !isAdmin) {
-      await firebaseSignOut(auth);
-      throw new Error("Verify your email address before logging in.");
+      const snap = await getDoc(doc(db, "users", credential.user.uid));
+      const profile = snap.exists() ? snap.data() : {};
+      const isAdmin = profile.isAdmin || false;
+
+      // REMOVED: Strict email verification check
+      console.log("SignIn Complete. isAdmin:", isAdmin);
+      return { ...credential.user, isAdmin };
+    } catch (err) {
+      console.error("SignIn Error:", err.code, err.message);
+      throw err;
     }
-
-    return { ...credential.user, isAdmin };
   }
 
   async function signOut() {
+    console.log("--- Signing Out ---");
     await firebaseSignOut(auth);
     setUser(null);
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BackHomeButton from "@/components/BackHomeButton";
+import PageLoader from "@/components/PageLoader"; // Import your loader
 import { useAppContext } from "@/app/state/AppContext";
 import { getPurchaseHistory } from "@/lib/purchaseHistory";
 import { getUserRequests } from "@/lib/api";
@@ -13,7 +14,7 @@ import RequestsSection from "./components/RequestsSection";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user } = useAppContext();
+  const { user, authLoading } = useAppContext(); // Get authLoading from context
 
   const [purchases, setPurchases] = useState([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
@@ -35,9 +36,20 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (!user) return;
-    if (user.isAdmin) { router.replace("/admin/dashboard"); return; }
+    // 1. Wait for auth check to finish
+    if (authLoading) return;
 
+    // 2. If no user after check, don't fetch data
+    if (!user) return;
+
+    // 3. Admin Redirect
+    if (user.isAdmin) {
+      console.log("[ProfilePage] Admin detected, redirecting...");
+      router.replace("/admin/dashboard");
+      return;
+    }
+
+    // 4. Fetch Profile Data
     setLoadingPurchases(true);
     getPurchaseHistory(user)
       .then(setPurchases)
@@ -45,8 +57,18 @@ export default function ProfilePage() {
       .finally(() => setLoadingPurchases(false));
 
     fetchRequests();
-  }, [router, user]);
+  }, [router, user, authLoading]);
 
+  // --- LOADING STATE ---
+  if (authLoading) {
+    return (
+      <main className="site-frame flex min-h-[60dvh] items-center justify-center">
+        <PageLoader text="Verifying session..." />
+      </main>
+    );
+  }
+
+  // --- UNAUTHORIZED STATE ---
   if (!user) {
     return (
       <main className="site-frame flex min-h-[calc(100dvh-5.5rem)] items-center py-6 sm:py-8">
@@ -65,6 +87,7 @@ export default function ProfilePage() {
 
   if (user.isAdmin) return null;
 
+  // --- AUTHORIZED PROFILE VIEW ---
   return (
     <main className="site-frame py-6 sm:py-8 lg:py-10">
       <div className="mb-4 flex justify-end sm:mb-6">
@@ -72,7 +95,6 @@ export default function ProfilePage() {
       </div>
 
       <div className="space-y-4">
-        {/* Changed items-start to items-stretch to align heights */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
           <AccountInfo
             user={user}
