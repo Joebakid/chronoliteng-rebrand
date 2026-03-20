@@ -62,17 +62,17 @@ export default function AuthForm({ mode }) {
           }),
         }).catch(err => console.error("Verification email failed:", err));
 
-        // 4. TRIGGER ADMIN ALERT
-        fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: 'chronoliteng@gmail.com', 
-            subject: `🔔 New Member Acquisition: ${form.name}`,
-            htmlType: 'admin_alert',
-            data: { name: form.name, email: form.email }
-          }),
-        }).catch(err => console.error("Admin alert failed:", err));
+        // // 4. TRIGGER ADMIN ALERT
+        // fetch('/api/send-email', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({
+        //     to: 'chronoliteng@gmail.com', 
+        //     subject: `🔔 New Member Acquisition: ${form.name}`,
+        //     htmlType: 'admin_alert',
+        //     data: { name: form.name, email: form.email }
+        //   }),
+        // }).catch(err => console.error("Admin alert failed:", err));
 
         // Switch to verification view
         setView("verify");

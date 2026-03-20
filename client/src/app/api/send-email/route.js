@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
-// Importing the templates we moved to the library
+// Importing the templates from your library
 import { 
   getVerificationHtml, 
   getWelcomeHtml, 
@@ -10,7 +10,6 @@ import {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = "Chronoliteng <hello@chronolite.com.ng>";
-const ADMIN_EMAIL = "chronoliteng@gmail.com";
 
 export async function POST(req) {
   try {
@@ -18,7 +17,6 @@ export async function POST(req) {
     let htmlBody = "";
 
     // --- Template Dispatcher ---
-    // This logic picks the correct HTML from your library based on the request
     switch (htmlType) {
       case 'verify':
         htmlBody = getVerificationHtml(data.name, data.code);
@@ -27,6 +25,7 @@ export async function POST(req) {
         htmlBody = getWelcomeHtml(data.name);
         break;
       case 'admin_alert':
+        // Now sends to the 'to' address provided, not your personal Gmail
         htmlBody = getAdminAlertHtml(data.name, data.email);
         break;
       case 'reset':
@@ -37,14 +36,11 @@ export async function POST(req) {
         htmlBody = `<p style="font-family:sans-serif; color:#ffffff;">${subject}</p>`;
     }
 
-    // --- Recipient Logic ---
-    // If it's an admin alert, send it to you. Otherwise, send it to the user.
-    const recipient = htmlType === 'admin_alert' ? ADMIN_EMAIL : to;
-
     // --- Execution ---
+    // All emails now go directly to the 'to' address passed in the request
     const { error } = await resend.emails.send({
       from: FROM,
-      to: [recipient],
+      to: [to], 
       subject: subject,
       html: htmlBody,
     });
