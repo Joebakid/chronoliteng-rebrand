@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { deleteProduct, toggleProductStock, updateProduct } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
-import Pagination from "@/components/Pagination";
-import { useSearchParams } from "next/navigation";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -12,7 +10,7 @@ const fmt = (n) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
 
 export default function ProductInventory({ products = [], onEdit, onRefresh }) {
-  const searchParams = useSearchParams();
+  const [page, setPage] = useState(1);
   const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "" });
   const [transitModal, setTransitModal] = useState({ open: false, product: null });
   const [transitNote, setTransitNote] = useState("");
@@ -52,14 +50,14 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
   // Only show products NOT in transit
   const inventoryProducts = products.filter((p) => !p.inTransit);
 
-  // Pagination
-  const currentPage = Number(searchParams.get("invPage")) || 1;
   const totalPages = Math.max(1, Math.ceil(inventoryProducts.length / ITEMS_PER_PAGE));
-  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const safePage = Math.min(Math.max(1, page), totalPages);
   const paginated = inventoryProducts.slice(
     (safePage - 1) * ITEMS_PER_PAGE,
     safePage * ITEMS_PER_PAGE
   );
+
+  const goTo = (p) => setPage(Math.min(Math.max(1, p), totalPages));
 
   return (
     <div className="space-y-4">
@@ -85,7 +83,6 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
                 This will mark the product as ordered but not yet arrived. It will be hidden from your storefront.
               </p>
             </div>
-
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ml-1">
                 Transit Note (optional)
@@ -97,7 +94,6 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
                 className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-sky-500 w-full"
               />
             </div>
-
             <div className="flex gap-3">
               <button
                 onClick={() => setTransitModal({ open: false, product: null })}
@@ -136,7 +132,9 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
       {paginated.map((p) => {
         const hasMargin = p.costPrice && p.price;
         const profit = hasMargin ? p.price - p.costPrice : null;
-        const margin = hasMargin ? (((p.price - p.costPrice) / p.costPrice) * 100).toFixed(1) : null;
+        const margin = hasMargin
+          ? (((p.price - p.costPrice) / p.costPrice) * 100).toFixed(1)
+          : null;
         const isProfit = margin !== null && parseFloat(margin) >= 0;
 
         return (
@@ -159,7 +157,11 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
             </div>
 
             {margin !== null && (
-              <div className={`mb-3 flex items-center justify-between rounded-xl px-3 py-2 border text-[10px] font-black uppercase tracking-wider ${isProfit ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600" : "bg-red-500/5 border-red-500/20 text-red-500"}`}>
+              <div className={`mb-3 flex items-center justify-between rounded-xl px-3 py-2 border text-[10px] font-black uppercase tracking-wider ${
+                isProfit
+                  ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600"
+                  : "bg-red-500/5 border-red-500/20 text-red-500"
+              }`}>
                 <span>{isProfit ? "▲ Profit" : "▼ Loss"}</span>
                 <span>{isProfit ? "+" : ""}{fmt(profit)} ({isProfit ? "+" : ""}{margin}%)</span>
               </div>
@@ -196,62 +198,47 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
         );
       })}
 
-      {/* Pagination — uses invPage param to avoid clashing with other paginations */}
+      {/* Pagination — always visible when there are products */}
       {inventoryProducts.length > 0 && (
-        <InventoryPagination totalPages={totalPages} currentPage={safePage} />
-      )}
-    </div>
-  );
-}
+        <div className="flex items-center justify-center gap-2 pt-2 pb-4">
+          {/* Prev */}
+          <button
+            onClick={() => goTo(safePage - 1)}
+            disabled={safePage <= 1}
+            className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Prev
+          </button>
 
-// Separate client component for inventory pagination
-// Uses `invPage` param instead of `page` to avoid conflicts with other tabs
-function InventoryPagination({ totalPages, currentPage }) {
-  const searchParams = useSearchParams();
+          {/* Page numbers */}
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }, (_, i) => {
+              const p = i + 1;
+              return (
+                <button
+                  key={p}
+                  onClick={() => goTo(p)}
+                  className={`min-w-[40px] text-center rounded-xl px-3 py-2 text-sm border transition ${
+                    p === safePage
+                      ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]"
+                      : "border-[var(--border)] hover:bg-[var(--surface)]"
+                  }`}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
 
-  const createURL = (pageNumber) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("invPage", pageNumber.toString());
-    return `?${params.toString()}`;
-  };
-
-  if (totalPages <= 1) return null;
-
-  return (
-    <div className="flex items-center justify-center gap-2 pt-2 pb-4">
-      {currentPage > 1 ? (
-        <a href={createURL(currentPage - 1)} className="rounded-xl border border-[var(--border)] px-4 py-2 text-xs hover:bg-[var(--surface)] transition">
-          Prev
-        </a>
-      ) : (
-        <span className="rounded-xl border border-[var(--border)] px-4 py-2 text-xs opacity-30 cursor-not-allowed">Prev</span>
-      )}
-
-      <div className="flex gap-1">
-        {Array.from({ length: totalPages }, (_, i) => {
-          const page = i + 1;
-          return (
-            <a
-              key={page}
-              href={createURL(page)}
-              className={`min-w-[36px] text-center rounded-xl px-3 py-2 text-xs border transition ${
-                page === currentPage
-                  ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]"
-                  : "border-[var(--border)] hover:bg-[var(--surface)]"
-              }`}
-            >
-              {page}
-            </a>
-          );
-        })}
-      </div>
-
-      {currentPage < totalPages ? (
-        <a href={createURL(currentPage + 1)} className="rounded-xl border border-[var(--border)] px-4 py-2 text-xs hover:bg-[var(--surface)] transition">
-          Next
-        </a>
-      ) : (
-        <span className="rounded-xl border border-[var(--border)] px-4 py-2 text-xs opacity-30 cursor-not-allowed">Next</span>
+          {/* Next */}
+          <button
+            onClick={() => goTo(safePage + 1)}
+            disabled={safePage >= totalPages}
+            className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { createPhysicalSale, getPhysicalSales, deletePhysicalSale } from "@/lib/api";
 
+const ITEMS_PER_PAGE = 5;
+
 const fmt = (n) =>
   new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -30,6 +32,7 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState({
     amountPaid: "",
     notes: "",
@@ -49,6 +52,15 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
       setLoading(false);
     }
   };
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(sales.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const paginatedSales = sales.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE
+  );
+  const goTo = (p) => setPage(Math.min(Math.max(1, p), totalPages));
 
   const setField = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -98,6 +110,7 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
       await fetchSales();
       if (onSaleRecorded) onSaleRecorded();
       setForm({ amountPaid: "", notes: "", items: [emptyItem()] });
+      setPage(1); // go back to first page after new sale
       setSuccessMsg("Saved to Firebase ✓");
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err) {
@@ -112,6 +125,10 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
       await deletePhysicalSale(id);
       await fetchSales();
       if (onSaleRecorded) onSaleRecorded();
+      // If deleting last item on current page, go back one page
+      const newTotal = sales.length - 1;
+      const newTotalPages = Math.max(1, Math.ceil(newTotal / ITEMS_PER_PAGE));
+      if (safePage > newTotalPages) setPage(newTotalPages);
     } catch (err) {
       console.error("[PhysicalSalesTab] delete error:", err);
     }
@@ -234,37 +251,77 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
             <p className="text-[11px] text-[var(--muted)] opacity-60">Record your first physical sale using the form.</p>
           </div>
         ) : (
-          sales.map((sale) => (
-            <div key={sale.id} className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">Walk-in</span>
-                  <p className="text-[10px] text-[var(--muted)] mt-1.5 uppercase tracking-tight">{fmtDate(sale.createdAt)}</p>
+          <>
+            {paginatedSales.map((sale) => (
+              <div key={sale.id} className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">Walk-in</span>
+                    <p className="text-[10px] text-[var(--muted)] mt-1.5 uppercase tracking-tight">{fmtDate(sale.createdAt)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-black text-[var(--accent)]">{fmt(sale.total)}</p>
+                    <button onClick={() => handleDelete(sale.id)} className="text-[10px] font-bold uppercase text-red-400 hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50 border border-transparent hover:border-red-100">
+                      Del
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-black text-[var(--accent)]">{fmt(sale.total)}</p>
-                  <button onClick={() => handleDelete(sale.id)} className="text-[10px] font-bold uppercase text-red-400 hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50 border border-transparent hover:border-red-100">
-                    Del
-                  </button>
-                </div>
+
+                {sale.items?.length > 0 && (
+                  <div className="space-y-1.5">
+                    {sale.items.map((item, i) => (
+                      <div key={i} className="flex items-center justify-between rounded-xl bg-[var(--surface)] px-3 py-2">
+                        <p className="text-xs font-bold truncate">{item.name}</p>
+                        <p className="text-[10px] text-[var(--muted)] flex-shrink-0 ml-2">{fmt(item.price)} × {item.quantity}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {sale.notes && (
+                  <p className="text-[11px] text-[var(--muted)] italic border-t border-[var(--border)]/50 pt-2">"{sale.notes}"</p>
+                )}
+              </div>
+            ))}
+
+            {/* Pagination */}
+            <div className="flex items-center justify-center gap-2 pt-2 pb-4">
+              <button
+                onClick={() => goTo(safePage - 1)}
+                disabled={safePage <= 1}
+                className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+
+              <div className="flex gap-1">
+                {Array.from({ length: totalPages }, (_, i) => {
+                  const p = i + 1;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => goTo(p)}
+                      className={`min-w-[40px] text-center rounded-xl px-3 py-2 text-sm border transition ${
+                        p === safePage
+                          ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]"
+                          : "border-[var(--border)] hover:bg-[var(--surface)]"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
               </div>
 
-              {sale.items?.length > 0 && (
-                <div className="space-y-1.5">
-                  {sale.items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-xl bg-[var(--surface)] px-3 py-2">
-                      <p className="text-xs font-bold truncate">{item.name}</p>
-                      <p className="text-[10px] text-[var(--muted)] flex-shrink-0 ml-2">{fmt(item.price)} × {item.quantity}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {sale.notes && (
-                <p className="text-[11px] text-[var(--muted)] italic border-t border-[var(--border)]/50 pt-2">"{sale.notes}"</p>
-              )}
+              <button
+                onClick={() => goTo(safePage + 1)}
+                disabled={safePage >= totalPages}
+                className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
             </div>
-          ))
+          </>
         )}
       </div>
     </div>
