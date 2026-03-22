@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
 import { resolveProductImage } from "@/lib/productImage";
-import { recordPurchase } from "@/lib/purchaseHistory";
 import { createOrder } from "@/lib/api";
 
 function formatPrice(amount) {
@@ -67,13 +66,13 @@ export default function CartView() {
     setCheckoutError("");
     if (!user) { router.push("/account/sign-in?next=/account/profile"); return; }
     try {
+      // createOrder is the single source of truth — recordPurchase was a duplicate
       await createOrder({
         items: cartItems,
         total: cartTotal,
         paystackRef: paystackRef || null,
         paymentMethod: paystackRef ? "paystack" : "manual",
       }, user);
-      await recordPurchase(user, cartItems, cartTotal);
       clearCart();
       router.push("/account/profile");
     } catch (error) {
@@ -109,7 +108,6 @@ export default function CartView() {
               <div>
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{item.collection}</p>
                 <h2 className="mt-2 text-xl font-semibold text-[var(--foreground)]">{item.name}</h2>
-                <p className="mt-2 text-[0.84rem] leading-6 text-[var(--muted)]">{item.description}</p>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">

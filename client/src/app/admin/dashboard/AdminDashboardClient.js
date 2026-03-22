@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { getProducts, getAdminAnalytics, getUsers, getAdminOrders } from "@/lib/api";
+import { getProducts, getAdminAnalytics, getUsers, getAdminOrders, getPhysicalSales } from "@/lib/api";
+import { calcProfit } from "./dashboardUtils";
+
+import DashboardStats from "./DashboardStats";
+import DashboardMonthCard from "./DashboardMonthCard";
+import DashboardProfitCard from "./DashboardProfitCard";
+import DashboardTabs from "./DashboardTabs";
+
 import ProductsTab from "./ProductsTab";
 import UsersTab from "./UsersTab";
 import OrdersTab from "./OrdersTab";
+import InTransitTab from "./InTransitTab";
+import PhysicalSalesTab from "./PhysicalSalesTab";
 import PageLoader from "@/components/PageLoader";
-
-const TABS = ["Products", "Users", "Orders"];
-
-const fmt = (n) =>
-  new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-  }).format(n);
 
 export default function AdminDashboardClient() {
   const router = useRouter();
@@ -26,20 +26,21 @@ export default function AdminDashboardClient() {
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [physicalSales, setPhysicalSales] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [status, setStatus] = useState({ type: "", message: "" });
 
   const [analytics, setAnalytics] = useState({
     totalProducts: 0,
-    totalCategories: 0,
-    averagePrice: 0,
-    highestPrice: 0,
     totalOrders: 0,
     totalRevenue: 0,
     totalItemsSold: 0,
+    averagePrice: 0,
+    highestPrice: 0,
   });
 
+  // ── Fetch products + users + analytics ──
   const fetchAll = async () => {
     setFetching(true);
     try {
@@ -58,11 +59,16 @@ export default function AdminDashboardClient() {
     }
   };
 
+  // ── Fetch orders + walk-in sales ──
   const fetchOrders = async () => {
     setLoadingOrders(true);
     try {
-      const data = await getAdminOrders();
-      setOrders(data || []);
+      const [onlineData, physicalData] = await Promise.all([
+        getAdminOrders(),
+        getPhysicalSales(),
+      ]);
+      setOrders(onlineData || []);
+      setPhysicalSales(physicalData || []);
     } catch (err) {
       console.error("[AdminDashboard] orders error:", err);
     } finally {
@@ -70,9 +76,13 @@ export default function AdminDashboardClient() {
     }
   };
 
+  const handleSaleRecorded = useCallback(() => { fetchOrders(); }, []);
+
   useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchOrders(); }, []);
   useEffect(() => { if (activeTab === "Orders") fetchOrders(); }, [activeTab]);
 
+  // ── Tab change ──
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     const params = new URLSearchParams(searchParams.toString());
@@ -81,59 +91,87 @@ export default function AdminDashboardClient() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
+  // ── Derived values ──
+  const netProfit = calcProfit(orders, physicalSales, products);
+  const inTransitCount = products.filter((p) => p.inTransit).length;
+  const walkInCount = physicalSales.length;
+
   return (
     <div className="space-y-6 sm:space-y-8 pb-10">
+
+      {/* Status banner */}
       {status.message && (
-        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${status.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"}`}>
+        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+          status.type === "error"
+            ? "bg-red-50 text-red-700 border border-red-200"
+            : "bg-green-50 text-green-700 border border-green-200"
+        }`}>
           {status.message}
         </div>
       )}
 
-      {/* Stats Cards: Responsive Grid */}
-      <div className="grid grid-cols-2 gap-3 lg:gap-4 xl:grid-cols-4">
-        {[
-          { label: "Products", value: fetching ? null : analytics.totalProducts || products.length },
-          { label: "Orders", value: fetching ? null : analytics.totalOrders },
-          { label: "Revenue", value: fetching ? null : fmt(analytics.totalRevenue) },
-          { label: "Items Sold", value: fetching ? null : analytics.totalItemsSold },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-[1.5rem] sm:rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 sm:p-5 shadow-sm">
-            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[var(--muted)] truncate">
-              {label}
-            </p>
-            {value === null ? (
-              <div className="mt-2 h-7 w-16 rounded-lg bg-[var(--border)] animate-pulse" />
-            ) : (
-              <p className="mt-2 text-xl sm:text-2xl font-semibold truncate">{value}</p>
-            )}
-          </div>
-        ))}
+      {/* Row 1: 4 stat cards */}
+      <DashboardStats
+        analytics={analytics}
+        products={products}
+        physicalSales={physicalSales}
+        fetching={fetching}
+      />
+
+      {/* Row 2: Month card + P&L card */}
+      <div className="grid grid-cols-1 gap-3 lg:gap-4 sm:grid-cols-2">
+        <DashboardMonthCard
+          orders={orders}
+          physicalSales={physicalSales}
+          loading={loadingOrders}
+        />
+        <DashboardProfitCard
+          netProfit={netProfit}
+          loading={loadingOrders}
+        />
       </div>
 
-      {/* Navigation Tabs: Scrollable on very small screens */}
-      <div className="flex gap-4 sm:gap-6 border-b border-[var(--border)] overflow-x-auto scrollbar-hide">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => handleTabChange(tab)}
-            className={`pb-3 text-xs sm:text-sm font-bold uppercase tracking-[0.16em] transition border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === tab
-                ? "border-[var(--foreground)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {/* Tab navigation */}
+      <DashboardTabs
+        activeTab={activeTab}
+        onChange={handleTabChange}
+        inTransitCount={inTransitCount}
+        walkInCount={walkInCount}
+      />
 
+      {/* Tab content */}
       <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
         <div className="min-h-[400px]">
           {activeTab === "Products" && (
-            <ProductsTab products={products} fetching={fetching} onRefresh={fetchAll} onStatusChange={setStatus} />
+            <ProductsTab
+              products={products}
+              fetching={fetching}
+              onRefresh={fetchAll}
+              onStatusChange={setStatus}
+            />
           )}
-          {activeTab === "Users" && <UsersTab users={users} fetching={fetching} />}
-          {activeTab === "Orders" && <OrdersTab orders={orders} loadingOrders={loadingOrders} />}
+          {activeTab === "Walk-in" && (
+            <PhysicalSalesTab
+              products={products}
+              onSaleRecorded={handleSaleRecorded}
+            />
+          )}
+          {activeTab === "In Transit" && (
+            <InTransitTab
+              products={products}
+              fetching={fetching}
+              onRefresh={fetchAll}
+            />
+          )}
+          {activeTab === "Users" && (
+            <UsersTab users={users} fetching={fetching} />
+          )}
+          {activeTab === "Orders" && (
+            <OrdersTab
+              orders={orders}
+              loadingOrders={loadingOrders}
+            />
+          )}
         </div>
       </Suspense>
     </div>

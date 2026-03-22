@@ -11,14 +11,24 @@ const formatFirebaseDoc = (d) => {
   return {
     ...data,
     id: d.id,
-    createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || null,
-    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt || null,
+    createdAt: data.createdAt?.toDate
+      ? data.createdAt.toDate().toISOString()
+      : data.createdAt || null,
+    updatedAt: data.updatedAt?.toDate
+      ? data.updatedAt.toDate().toISOString()
+      : data.updatedAt || null,
   };
 };
 
+/**
+ * STOREFRONT: Returns only products visible to customers.
+ * Filters out in-transit products and hidden (inStock: false) products.
+ */
 export async function getProducts() {
   const snap = await getDocs(
     query(collection(db, "products"), orderBy("createdAt", "desc"))
   );
-  return snap.docs.map(formatFirebaseDoc);
+  return snap.docs
+    .map(formatFirebaseDoc)
+    .filter((p) => p.inStock === true && p.inTransit !== true);
 }
