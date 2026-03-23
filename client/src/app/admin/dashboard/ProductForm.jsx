@@ -14,7 +14,7 @@ const fmt = (n) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
 
 const emptyForm = {
-  name: "", price: "", costPrice: "", description: "", category: "",
+  name: "", price: "", costPrice: "", description: "", category: "Watches",
   collection: "", caseSize: DEFAULT_CASE_SIZE, movement: "", powerSource: "",
   strap: "", strapColor: "", dialColor: "", colors: "", images: [],
   inTransit: false, transitNote: "",
@@ -35,7 +35,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   }, []);
 
   const isEditing = Boolean(editingProduct);
-  const isWatchCategory = form.category === "Watches";
+ const isWatchCategory = form.category?.toLowerCase() === "watches";
 
   useEffect(() => {
     if (editingProduct) {
