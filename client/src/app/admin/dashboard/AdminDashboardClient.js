@@ -15,6 +15,7 @@ import UsersTab from "./UsersTab";
 import OrdersTab from "./OrdersTab";
 import InTransitTab from "./InTransitTab";
 import PhysicalSalesTab from "./PhysicalSalesTab";
+import CategoriesTab from "./CategoriesTab";
 import PageLoader from "@/components/PageLoader";
 
 export default function AdminDashboardClient() {
@@ -171,6 +172,9 @@ export default function AdminDashboardClient() {
               orders={orders}
               loadingOrders={loadingOrders}
             />
+          )}
+          {activeTab === "Settings" && (
+            <CategoriesTab />
           )}
         </div>
       </Suspense>

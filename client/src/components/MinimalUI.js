@@ -4,11 +4,6 @@ import CategoryFilter from "@/components/CategoryFilter";
 import SearchBar from "@/components/SearchBar";
 import { Suspense } from "react";
 
-const CATEGORY_LABELS = {
-  Watches: "Timepieces",
-  Footwear: "Footwear",
-};
-
 export default function MinimalUI({
   products = [],
   totalPages = 1,
@@ -19,7 +14,7 @@ export default function MinimalUI({
   totalFiltered = 0,
 }) {
   const grouped = products.reduce((acc, p) => {
-    const cat = p.category || "Watches";
+    const cat = p.category || "Uncategorised";
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(p);
     return acc;
@@ -32,16 +27,14 @@ export default function MinimalUI({
     <section className="site-frame py-6 sm:py-10 lg:py-16">
       <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-6 shadow-[var(--shadow)] sm:px-6 sm:py-10 lg:px-8">
 
-        {/* Search + Filters header */}
+        {/* Search + Filters */}
         <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-5">
-          {/* Search bar */}
           <Suspense fallback={
             <div className="h-10 w-full max-w-md rounded-full bg-[var(--border)] animate-pulse" />
           }>
             <SearchBar initialQuery={searchQuery} />
           </Suspense>
 
-          {/* Category filters + count */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <Suspense fallback={
               <div className="flex gap-2">
@@ -56,12 +49,11 @@ export default function MinimalUI({
               />
             </Suspense>
 
-            {/* Result count */}
             {(selectedCategory || searchQuery) && (
               <p className="text-[0.65rem] text-[var(--muted)] shrink-0">
                 {totalFiltered} {totalFiltered === 1 ? "result" : "results"}
                 {searchQuery && ` for "${searchQuery}"`}
-                {selectedCategory && ` in ${CATEGORY_LABELS[selectedCategory] || selectedCategory}`}
+                {selectedCategory && ` in ${selectedCategory}`}
               </p>
             )}
           </div>
@@ -77,14 +69,12 @@ export default function MinimalUI({
               {searchQuery
                 ? `Nothing matched "${searchQuery}"`
                 : selectedCategory
-                ? `No ${CATEGORY_LABELS[selectedCategory] || selectedCategory} available`
+                ? `No ${selectedCategory} products available`
                 : "Upload products from the admin dashboard"}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-              {searchQuery
-                ? "Try a different search term or browse by category."
-                : selectedCategory
-                ? "Try a different category or check back later."
+              {searchQuery || selectedCategory
+                ? "Try a different filter or browse all products."
                 : "Add items in the admin dashboard and they will appear here automatically."}
             </p>
           </div>
@@ -95,8 +85,9 @@ export default function MinimalUI({
                 <div key={cat}>
                   {showCategoryHeadings && (
                     <div className="mb-4 flex items-center gap-3">
+                      {/* Show category name exactly as typed in admin */}
                       <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-                        {CATEGORY_LABELS[cat] || cat}
+                        {cat}
                       </p>
                       <span className="flex-1 border-t border-[var(--border)]" />
                       <p className="text-[0.65rem] text-[var(--muted)]">
@@ -104,7 +95,6 @@ export default function MinimalUI({
                       </p>
                     </div>
                   )}
-
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {grouped[cat].map((product) => (
                       <ProductCard key={product._id || product.id} product={product} />
@@ -114,7 +104,6 @@ export default function MinimalUI({
               ))}
             </div>
 
-            {/* Pagination */}
             <Suspense fallback={null}>
               <Pagination totalPages={totalPages} />
             </Suspense>

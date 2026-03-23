@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createProduct, updateProduct } from "@/lib/api";
+import { createProduct, updateProduct, getCategories } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
 
-const CATEGORIES = ["Watches", "Footwear"];
+
 const MOVEMENTS = ["Quartz", "Mechanical", "Automatic"];
 const POWER_SOURCES = ["Battery", "Solar", "Kinetic", "Manual Wind"];
 const DEFAULT_CASE_SIZE = "40mm";
@@ -28,6 +28,13 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const [existingImages, setExistingImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedImageView, setSelectedImageView] = useState(null);
+  const [categories, setCategories] = useState(["Watches"]);
+
+  useEffect(() => {
+    getCategories()
+      .then((data) => { if (data.length > 0) setCategories(data.map((c) => c.name)); })
+      .catch(() => setCategories(["Watches"]));
+  }, []);
 
   const isEditing = Boolean(editingProduct);
   const isWatchCategory = form.category === "Watches";
@@ -181,7 +188,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
               <div className="space-y-1.5">
                 <label className={labelCls}>Category</label>
                 <select value={form.category} onChange={setField("category")} className={inputCls}>
-                  {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                  {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">

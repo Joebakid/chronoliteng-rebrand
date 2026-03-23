@@ -1,33 +1,32 @@
 import MinimalUI from "@/components/MinimalUI";
-import { getProducts } from "@/lib/api.server";
+import { getProducts, getStorefrontCategories } from "@/lib/api.server";
 
 export const revalidate = 30;
 
 const PRODUCTS_PER_PAGE = 12;
 
 export default async function Home({ searchParams }) {
-  // Next.js 15+ — searchParams is a Promise
   const params = await searchParams;
 
   let allProducts = [];
+  let allCategories = [];
 
   try {
-    const liveProducts = await getProducts();
-    if (Array.isArray(liveProducts)) {
-      allProducts = liveProducts;
-    }
+    const [liveProducts, liveCategories] = await Promise.all([
+      getProducts(),
+      getStorefrontCategories(),
+    ]);
+    if (Array.isArray(liveProducts)) allProducts = liveProducts;
+    if (Array.isArray(liveCategories)) allCategories = liveCategories;
   } catch {}
 
-  // All unique categories
-  const allCategories = [...new Set(allProducts.map((p) => p.category || "Watches"))];
-
-  // Filter by category
+  // Filter by selected category
   const selectedCategory = params?.category || null;
   let filtered = selectedCategory
-    ? allProducts.filter((p) => (p.category || "Watches") === selectedCategory)
+    ? allProducts.filter((p) => (p.category || "Watches").toLowerCase() === selectedCategory.toLowerCase())
     : allProducts;
 
-  // Search — only match name and collection (brand), not description
+  // Filter by search query
   const searchQuery = params?.q?.toLowerCase().trim() || "";
   if (searchQuery) {
     filtered = filtered.filter(

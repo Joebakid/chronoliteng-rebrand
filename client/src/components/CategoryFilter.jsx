@@ -2,11 +2,6 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-const CATEGORY_LABELS = {
-  Watches: "Timepieces",
-  Footwear: "Footwear",
-};
-
 export default function CategoryFilter({ categories = [], selectedCategory }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -14,7 +9,6 @@ export default function CategoryFilter({ categories = [], selectedCategory }) {
 
   const handleSelect = (cat) => {
     const params = new URLSearchParams(searchParams.toString());
-    // Toggle off if already selected
     if (params.get("category") === cat) {
       params.delete("category");
     } else {
@@ -38,7 +32,7 @@ export default function CategoryFilter({ categories = [], selectedCategory }) {
                 : "bg-transparent text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
             }`}
           >
-            {CATEGORY_LABELS[cat] || cat}
+            {cat}
           </button>
         );
       })}
