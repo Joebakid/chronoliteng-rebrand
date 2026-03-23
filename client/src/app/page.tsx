@@ -6,21 +6,42 @@ export const revalidate = 30;
 const PRODUCTS_PER_PAGE = 12;
 
 export default async function Home({ searchParams }) {
-  let products = [];
+  // Next.js 15+ — searchParams is a Promise
+  const params = await searchParams;
+
+  let allProducts = [];
 
   try {
     const liveProducts = await getProducts();
     if (Array.isArray(liveProducts)) {
-      // getProducts() in api.server.js already filters inStock + inTransit
-      products = liveProducts;
+      allProducts = liveProducts;
     }
   } catch {}
 
-  const currentPage = Number(searchParams?.page) || 1;
-  const totalPages = Math.max(1, Math.ceil(products.length / PRODUCTS_PER_PAGE));
-  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  // All unique categories
+  const allCategories = [...new Set(allProducts.map((p) => p.category || "Watches"))];
 
-  const paginated = products.slice(
+  // Filter by category
+  const selectedCategory = params?.category || null;
+  let filtered = selectedCategory
+    ? allProducts.filter((p) => (p.category || "Watches") === selectedCategory)
+    : allProducts;
+
+  // Search — only match name and collection (brand), not description
+  const searchQuery = params?.q?.toLowerCase().trim() || "";
+  if (searchQuery) {
+    filtered = filtered.filter(
+      (p) =>
+        p.name?.toLowerCase().includes(searchQuery) ||
+        p.collection?.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  // Paginate
+  const currentPage = Number(params?.page) || 1;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginated = filtered.slice(
     (safePage - 1) * PRODUCTS_PER_PAGE,
     safePage * PRODUCTS_PER_PAGE
   );
@@ -31,6 +52,10 @@ export default async function Home({ searchParams }) {
         products={paginated}
         totalPages={totalPages}
         currentPage={safePage}
+        categories={allCategories}
+        selectedCategory={selectedCategory}
+        searchQuery={searchQuery}
+        totalFiltered={filtered.length}
       />
     </main>
   );
