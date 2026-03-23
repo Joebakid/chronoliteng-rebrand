@@ -180,7 +180,7 @@ export default function AccountInfo({ user, purchases, requests, loadingPurchase
           <div className="rounded-2xl border border-dashed border-[var(--border)] py-6 text-center">
             <p className="text-xs text-[var(--muted)]">No delivery details yet.</p>
             <p className="text-[11px] text-[var(--muted)] opacity-60 mt-1">
-              Add your address to speed up checkout.
+              Add your address to speed up checkout..
             </p>
           </div>
         )}
