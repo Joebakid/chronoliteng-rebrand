@@ -35,7 +35,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   }, []);
 
   const isEditing = Boolean(editingProduct);
- const isWatchCategory = form.category?.toLowerCase() === "watches";
+  const isWatchCategory = form.category?.toLowerCase() === "watches";
 
   useEffect(() => {
     if (editingProduct) {
@@ -60,16 +60,27 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
   useEffect(() => {
     return () => imagePreviews.forEach(url => URL.revokeObjectURL(url));
-  }, [imagePreviews]);
+  }, []);
 
   const setField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
   const setToggle = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.checked }));
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
-    setForm(p => ({ ...p, images: files }));
-    imagePreviews.forEach(url => URL.revokeObjectURL(url));
-    setImagePreviews(files.map(f => URL.createObjectURL(f)));
+    const newPreviews = files.map(f => URL.createObjectURL(f));
+    setForm(p => ({ ...p, images: [...p.images, ...files] }));
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    e.target.value = "";
+  };
+
+  const removeNewImage = (index) => {
+    URL.revokeObjectURL(imagePreviews[index]);
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setForm(p => ({ ...p, images: p.images.filter((_, i) => i !== index) }));
+  };
+
+  const removeExistingImage = (index) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const uploadToCloudinary = async (file) => {
@@ -98,11 +109,16 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         colors: form.colors ? form.colors.split(",").map((c) => c.trim()) : [],
         images: isEditing ? [...existingImages, ...imageUrls] : imageUrls,
       };
-      if (isEditing) {
-        await updateProduct(editingProduct.id, payload);
-      } else {
-        await createProduct(payload);
-      }
+    if (isEditing) {
+  await updateProduct(editingProduct.id, payload);
+} else {
+  await createProduct(payload);
+
+  // reset form after creating product
+  setForm(emptyForm);
+  setImagePreviews([]);
+  setExistingImages([]);
+}
       onStatusChange({ type: "success", message: isEditing ? "Updated." : "Created." });
       onSuccess();
     } catch (err) {
@@ -152,7 +168,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
           <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4">
             <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">Basic Info</p>
 
-            {/* Product name — full width */}
             <div className="space-y-1">
               <label className={labelCls}>Name</label>
               <input
@@ -164,7 +179,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
               />
             </div>
 
-            {/* Price row */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className={labelCls}>Price (₦)</label>
@@ -176,7 +190,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
               </div>
             </div>
 
-            {/* P&L preview */}
             {profitPreview && (
               <div className={`flex items-center justify-between rounded-xl px-3 py-2 border text-xs ${profitPreview.isProfit ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600" : "bg-red-500/5 border-red-500/20 text-red-500"}`}>
                 <span className="font-black uppercase text-[10px]">{profitPreview.isProfit ? "▲ Profit" : "▼ Loss"}</span>
@@ -184,7 +197,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
               </div>
             )}
 
-            {/* Category + Collection */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className={labelCls}>Category</label>
@@ -198,7 +210,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
               </div>
             </div>
 
-            {/* Description */}
             <div className="space-y-1">
               <label className={labelCls}>Description</label>
               <textarea
@@ -270,7 +281,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className={labelCls}>Strap</label>
+                  <label className={labelCls}>Strap Material</label>
                   <input value={form.strap} onChange={setField("strap")} placeholder="Silicone" className={inputCls} />
                 </div>
                 <div className="space-y-1">
@@ -301,14 +312,38 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             {(imagePreviews.length > 0 || existingImages.length > 0) && (
               <div className="grid grid-cols-4 gap-2">
                 {existingImages.map((url, i) => (
-                  <div key={`exist-${i}`} onClick={() => setSelectedImageView(url)} className="aspect-square cursor-pointer overflow-hidden rounded-xl border border-[var(--border)] bg-white">
-                    <img src={url} className="h-full w-full object-cover" alt="" />
+                  <div key={`exist-${i}`} className="relative aspect-square overflow-hidden rounded-xl border border-[var(--border)] bg-white">
+                    <img
+                      src={url}
+                      className="h-full w-full object-cover cursor-pointer"
+                      onClick={() => setSelectedImageView(url)}
+                      alt=""
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(i)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs font-bold flex items-center justify-center hover:bg-red-500 transition z-10"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
                 {imagePreviews.map((url, i) => (
-                  <div key={`new-${i}`} onClick={() => setSelectedImageView(url)} className="relative aspect-square cursor-pointer overflow-hidden rounded-xl border-2 border-[var(--accent)] bg-white">
-                    <img src={url} className="h-full w-full object-cover" alt="" />
-                    <div className="absolute top-1 right-1 bg-[var(--accent)] rounded-full px-1 py-0.5">
+                  <div key={`new-${i}`} className="relative aspect-square overflow-hidden rounded-xl border-2 border-[var(--accent)] bg-white">
+                    <img
+                      src={url}
+                      className="h-full w-full object-cover cursor-pointer"
+                      onClick={() => setSelectedImageView(url)}
+                      alt=""
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(i)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs font-bold flex items-center justify-center hover:bg-red-500 transition z-10"
+                    >
+                      ×
+                    </button>
+                    <div className="absolute bottom-1 left-1 bg-[var(--accent)] rounded-full px-1 py-0.5">
                       <span className="text-[6px] text-white font-bold uppercase">New</span>
                     </div>
                   </div>
