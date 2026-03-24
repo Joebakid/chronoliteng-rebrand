@@ -1,5 +1,5 @@
 import BackHomeButton from "@/components/BackHomeButton";
-import CartView from "@/components/CartView";
+import CartView from "@/components/cart/CartView";
 
 export const metadata = {
   title: "Cart",
