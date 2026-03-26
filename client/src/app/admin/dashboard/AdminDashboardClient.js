@@ -41,7 +41,6 @@ export default function AdminDashboardClient() {
     highestPrice: 0,
   });
 
-  // ── Fetch products + users + analytics ──
   const fetchAll = async () => {
     setFetching(true);
     try {
@@ -60,7 +59,6 @@ export default function AdminDashboardClient() {
     }
   };
 
-  // ── Fetch orders + walk-in sales ──
   const fetchOrders = async () => {
     setLoadingOrders(true);
     try {
@@ -83,7 +81,6 @@ export default function AdminDashboardClient() {
   useEffect(() => { fetchOrders(); }, []);
   useEffect(() => { if (activeTab === "Orders") fetchOrders(); }, [activeTab]);
 
-  // ── Tab change ──
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     const params = new URLSearchParams(searchParams.toString());
@@ -92,26 +89,29 @@ export default function AdminDashboardClient() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
-  // ── Derived values ──
   const netProfit = calcProfit(orders, physicalSales, products);
   const inTransitCount = products.filter((p) => p.inTransit).length;
   const walkInCount = physicalSales.length;
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-10">
+    // FIX: Added 'w-full max-w-[100vw] overflow-x-hidden' to prevent dragging
+    <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 pb-20 overflow-x-hidden">
 
       {/* Status banner */}
       {status.message && (
-        <div className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+        <div className={`rounded-2xl px-4 py-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
           status.type === "error"
             ? "bg-red-50 text-red-700 border border-red-200"
             : "bg-green-50 text-green-700 border border-green-200"
         }`}>
-          {status.message}
+          <div className="flex items-center justify-between">
+            <span>{status.message}</span>
+            <button onClick={() => setStatus({ type: "", message: "" })} className="text-xs uppercase font-bold opacity-50">Close</button>
+          </div>
         </div>
       )}
 
-      {/* Row 1: 4 stat cards */}
+      {/* Row 1: Stat cards - Ensure DashboardStats handles grid internally */}
       <DashboardStats
         analytics={analytics}
         products={products}
@@ -119,8 +119,8 @@ export default function AdminDashboardClient() {
         fetching={fetching}
       />
 
-      {/* Row 2: Month card + P&L card */}
-      <div className="grid grid-cols-1 gap-3 lg:gap-4 sm:grid-cols-2">
+      {/* Row 2: Charts/Profit - Switched to grid-cols-1 by default, 2 on LG */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <DashboardMonthCard
           orders={orders}
           physicalSales={physicalSales}
@@ -132,17 +132,19 @@ export default function AdminDashboardClient() {
         />
       </div>
 
-      {/* Tab navigation */}
-      <DashboardTabs
-        activeTab={activeTab}
-        onChange={handleTabChange}
-        inTransitCount={inTransitCount}
-        walkInCount={walkInCount}
-      />
+      {/* Tab navigation - Wrapped to prevent overflow if tabs are many */}
+      <div className="sticky top-0 z-30 bg-[var(--background)] py-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <DashboardTabs
+          activeTab={activeTab}
+          onChange={handleTabChange}
+          inTransitCount={inTransitCount}
+          walkInCount={walkInCount}
+        />
+      </div>
 
-      {/* Tab content */}
+      {/* Tab content - Ensure components inside use responsive layouts */}
       <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
-        <div className="min-h-[400px]">
+        <div className="min-h-[400px] w-full">
           {activeTab === "Products" && (
             <ProductsTab
               products={products}

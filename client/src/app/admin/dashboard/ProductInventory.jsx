@@ -1,20 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { deleteProduct, toggleProductStock, updateProduct } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
 
 const ITEMS_PER_PAGE = 6;
 
 const fmt = (n) =>
-  new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("en-NG", { 
+    style: "currency", 
+    currency: "NGN", 
+    maximumFractionDigits: 0 
+  }).format(n);
 
 export default function ProductInventory({ products = [], onEdit, onRefresh }) {
   const [page, setPage] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "" });
-  const [transitModal, setTransitModal] = useState({ open: false, product: null });
-  const [transitNote, setTransitNote] = useState("");
   const [sendingToTransit, setSendingToTransit] = useState(null);
+
+  // 1. Extract Unique Categories
+  const categories = useMemo(() => {
+    const cats = products.map(p => p.category || "Uncategorized");
+    return ["All", ...Array.from(new Set(cats)).sort()];
+  }, [products]);
+
+  // 2. Filter Logic (Hide Transit + Filter by Dropdown)
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const isAvailable = !p.inTransit;
+      const matchesCat = selectedCategory === "All" || p.category === selectedCategory;
+      return isAvailable && matchesCat;
+    });
+  }, [products, selectedCategory]);
+
+  // 3. Compact Pagination Logic
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const paginated = filteredProducts.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE
+  );
+
+  const goTo = (p) => setPage(Math.min(Math.max(1, p), totalPages));
 
   const handleDelete = async () => {
     await deleteProduct(confirmModal.productId);
@@ -22,46 +50,8 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
     setConfirmModal({ open: false, productId: null, productName: "" });
   };
 
-  const openTransitModal = (product) => {
-    setTransitNote("");
-    setTransitModal({ open: true, product });
-  };
-
-  const handleSendToTransit = async () => {
-    if (!transitModal.product) return;
-    setSendingToTransit(transitModal.product.id);
-    try {
-      await updateProduct(transitModal.product.id, {
-        ...transitModal.product,
-        inTransit: true,
-        inStock: false,
-        transitNote: transitNote.trim() || "",
-      });
-      setTransitModal({ open: false, product: null });
-      setTransitNote("");
-      onRefresh();
-    } catch (err) {
-      console.error("[ProductInventory] send to transit error:", err);
-    } finally {
-      setSendingToTransit(null);
-    }
-  };
-
-  // Only show products NOT in transit
-  const inventoryProducts = products.filter((p) => !p.inTransit);
-
-  const totalPages = Math.max(1, Math.ceil(inventoryProducts.length / ITEMS_PER_PAGE));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const paginated = inventoryProducts.slice(
-    (safePage - 1) * ITEMS_PER_PAGE,
-    safePage * ITEMS_PER_PAGE
-  );
-
-  const goTo = (p) => setPage(Math.min(Math.max(1, p), totalPages));
-
   return (
-    <div className="space-y-4">
-      {/* Delete confirm */}
+    <div className="space-y-5">
       <ConfirmModal
         open={confirmModal.open}
         title="Delete product?"
@@ -72,172 +62,152 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
         onCancel={() => setConfirmModal({ open: false, productId: null, productName: "" })}
       />
 
-      {/* Send to Transit modal */}
-      {transitModal.open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-6 shadow-2xl space-y-5">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-sky-500 mb-1">Send to Transit</p>
-              <h3 className="text-base font-bold">{transitModal.product?.name}</h3>
-              <p className="text-xs text-[var(--muted)] mt-1">
-                This will mark the product as ordered but not yet arrived. It will be hidden from your storefront.
-              </p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ml-1">
-                Transit Note (optional)
-              </label>
-              <input
-                value={transitNote}
-                onChange={(e) => setTransitNote(e.target.value)}
-                placeholder="e.g. Ordered from supplier, ETA 7 days"
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-sky-500 w-full"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setTransitModal({ open: false, product: null })}
-                className="flex-1 rounded-full border border-[var(--border)] py-3 text-xs font-bold uppercase tracking-wider text-[var(--muted)] hover:text-[var(--foreground)] transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSendToTransit}
-                disabled={!!sendingToTransit}
-                className="flex-1 rounded-full bg-sky-500 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-sky-600 transition disabled:opacity-50"
-              >
-                {sendingToTransit ? "Sending..." : "🚚 Send"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-2">
-        <h2 className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-[var(--muted)]">Inventory</h2>
-        <span className="text-[10px] font-bold text-[var(--accent)]">{inventoryProducts.length} Styles</span>
-      </div>
-
-      {inventoryProducts.length === 0 && (
-        <div className="rounded-[2rem] border border-dashed border-[var(--border)] py-16 text-center">
-          <p className="text-sm text-[var(--muted)]">No products in inventory.</p>
-          <p className="text-[11px] text-[var(--muted)] opacity-60 mt-1">
-            Products in transit are tracked in the In Transit tab.
+      {/* --- Header & Filter Row --- */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2">
+        <div>
+          <h2 className="text-[0.65rem] font-black uppercase tracking-[0.25em] text-[var(--muted)]">Inventory</h2>
+          <p className="text-[10px] font-bold text-[var(--accent)]">
+            {filteredProducts.length} {selectedCategory === "All" ? "" : selectedCategory} Styles
           </p>
         </div>
+
+        <div className="relative group">
+          <select 
+            value={selectedCategory}
+            onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
+            className="h-9 w-full sm:w-auto min-w-[140px] appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 text-[10px] font-bold uppercase tracking-widest outline-none transition focus:border-[var(--accent)] pr-10 cursor-pointer"
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] text-[8px]">▼</div>
+        </div>
+      </div>
+
+      {/* --- Product List --- */}
+      {filteredProducts.length === 0 ? (
+        <div className="rounded-[2.5rem] border border-dashed border-[var(--border)] py-20 text-center bg-[var(--surface)]/30">
+          <p className="text-sm text-[var(--muted)]">No {selectedCategory} items in stock.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {paginated.map((p) => {
+            const hasMargin = p.costPrice && p.price;
+            const profit = hasMargin ? p.price - p.costPrice : null;
+            const margin = hasMargin ? (((p.price - p.costPrice) / p.costPrice) * 100).toFixed(1) : null;
+            const isProfit = margin !== null && parseFloat(margin) >= 0;
+
+            return (
+              <div key={p.id} className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm transition-all hover:border-[var(--muted)]">
+                <div className="flex items-center gap-4 mb-4">
+                  <img 
+                    src={p.images?.[0]} 
+                    className="w-14 h-14 rounded-2xl object-cover bg-white border border-[var(--border)] shadow-sm" 
+                    alt="" 
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-bold tracking-tight">{p.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[7px] font-black uppercase bg-[var(--surface)] px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[var(--muted)]">
+                        {p.category}
+                      </span>
+                      <p className="text-[9px] uppercase font-bold text-[var(--muted)] truncate">
+                        {p.collection || "Unbranded"}
+                      </p>
+                    </div>
+                    <p className="text-[13px] font-black text-[var(--accent)] mt-1">{fmt(p.price)}</p>
+                  </div>
+                </div>
+
+                {margin !== null && (
+                  <div className={`mb-4 flex items-center justify-between rounded-xl px-3 py-2 border text-[9px] font-black uppercase tracking-wider ${
+                    isProfit ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600" : "bg-red-500/5 border-red-500/20 text-red-500"
+                  }`}>
+                    <span>{isProfit ? "▲ Profit" : "▼ Loss"}</span>
+                    <span>{isProfit ? "+" : ""}{fmt(profit)} ({isProfit ? "+" : ""}{margin}%)</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-4 gap-2">
+                  <button 
+                    onClick={() => toggleProductStock(p.id, !p.inStock).then(onRefresh)}
+                    className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2.5 text-[9px] font-bold uppercase transition hover:bg-[var(--foreground)] hover:text-[var(--background)]"
+                  >
+                    {p.inStock ? "Hide" : "Show"}
+                  </button>
+                  <button 
+                    onClick={() => onEdit(p)} 
+                    className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2.5 text-[9px] font-bold uppercase hover:border-[var(--accent)] transition"
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => updateProduct(p.id, { ...p, inTransit: true }).then(onRefresh)}
+                    className="rounded-xl bg-sky-500/10 border border-sky-500/20 py-2.5 text-[9px] text-sky-600 hover:bg-sky-500 transition"
+                  >
+                    🚚
+                  </button>
+                  <button 
+                    onClick={() => setConfirmModal({ open: true, productId: p.id, productName: p.name })} 
+                    className="rounded-xl bg-red-500/5 border border-red-500/10 py-2.5 text-[9px] font-bold uppercase text-red-500 hover:bg-red-500 hover:text-white transition"
+                  >
+                    Del
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      {/* Product cards */}
-      {paginated.map((p) => {
-        const hasMargin = p.costPrice && p.price;
-        const profit = hasMargin ? p.price - p.costPrice : null;
-        const margin = hasMargin
-          ? (((p.price - p.costPrice) / p.costPrice) * 100).toFixed(1)
-          : null;
-        const isProfit = margin !== null && parseFloat(margin) >= 0;
+      {/* --- Compact Pagination --- */}
+      {totalPages > 1 && (
+        <div className="flex flex-col items-center gap-4 pt-6 pb-2">
+          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[var(--muted)]">
+            Page {safePage} <span className="opacity-30">/</span> {totalPages}
+          </p>
 
-        return (
-          <div key={p.id} className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="relative flex-shrink-0">
-                <img
-                  src={p.images?.[0]}
-                  className="w-16 h-16 rounded-2xl object-cover bg-white border border-[var(--border)]"
-                  alt={p.name}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold">{p.name}</p>
-                <p className="text-[10px] uppercase font-bold text-[var(--muted)] tracking-wider">
-                  {p.collection || "No Brand"}
-                </p>
-                <p className="text-sm font-medium text-[var(--accent)]">{fmt(p.price)}</p>
-              </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => goTo(safePage - 1)}
+              disabled={safePage <= 1}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm transition disabled:opacity-20"
+            >
+              ‹
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => {
+                const p = i + 1;
+                const isNear = Math.abs(p - safePage) <= 1;
+                const isEnd = p === 1 || p === totalPages;
+                if (!isNear && !isEnd) return null;
+
+                return (
+                  <button
+                    key={p}
+                    onClick={() => goTo(p)}
+                    className={`h-8 min-w-[32px] rounded-lg border px-2 text-[10px] font-bold transition ${
+                      p === safePage
+                        ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
             </div>
 
-            {margin !== null && (
-              <div className={`mb-3 flex items-center justify-between rounded-xl px-3 py-2 border text-[10px] font-black uppercase tracking-wider ${
-                isProfit
-                  ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600"
-                  : "bg-red-500/5 border-red-500/20 text-red-500"
-              }`}>
-                <span>{isProfit ? "▲ Profit" : "▼ Loss"}</span>
-                <span>{isProfit ? "+" : ""}{fmt(profit)} ({isProfit ? "+" : ""}{margin}%)</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={() => toggleProductStock(p.id, !p.inStock).then(onRefresh)}
-                className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2 text-[10px] font-bold uppercase"
-              >
-                {p.inStock ? "Hide" : "Show"}
-              </button>
-              <button
-                onClick={() => onEdit(p)}
-                className="rounded-xl bg-[var(--surface)] border border-[var(--border)] py-2 text-[10px] font-bold uppercase"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => openTransitModal(p)}
-                className="rounded-xl bg-sky-500/10 border border-sky-500/20 py-2 text-[10px] font-bold uppercase text-sky-600 hover:bg-sky-500/20 transition"
-                title="Move to In Transit"
-              >
-                🚚
-              </button>
-              <button
-                onClick={() => setConfirmModal({ open: true, productId: p.id, productName: p.name })}
-                className="rounded-xl bg-red-50 border border-red-100 py-2 text-[10px] font-bold uppercase text-red-600"
-              >
-                Del
-              </button>
-            </div>
+            <button
+              onClick={() => goTo(safePage + 1)}
+              disabled={safePage >= totalPages}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm transition disabled:opacity-20"
+            >
+              ›
+            </button>
           </div>
-        );
-      })}
-
-      {/* Pagination — always visible when there are products */}
-      {inventoryProducts.length > 0 && (
-        <div className="flex items-center justify-center gap-2 pt-2 pb-4">
-          {/* Prev */}
-          <button
-            onClick={() => goTo(safePage - 1)}
-            disabled={safePage <= 1}
-            className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            Prev
-          </button>
-
-          {/* Page numbers */}
-          <div className="flex gap-1">
-            {Array.from({ length: totalPages }, (_, i) => {
-              const p = i + 1;
-              return (
-                <button
-                  key={p}
-                  onClick={() => goTo(p)}
-                  className={`min-w-[40px] text-center rounded-xl px-3 py-2 text-sm border transition ${
-                    p === safePage
-                      ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]"
-                      : "border-[var(--border)] hover:bg-[var(--surface)]"
-                  }`}
-                >
-                  {p}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Next */}
-          <button
-            onClick={() => goTo(safePage + 1)}
-            disabled={safePage >= totalPages}
-            className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface)] transition disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
         </div>
       )}
     </div>
