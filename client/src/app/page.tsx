@@ -2,7 +2,6 @@ import MinimalUI from "@/components/MinimalUI";
 import { getProducts, getStorefrontCategories } from "@/lib/api.server";
 
 export const revalidate = 30;
-
 const PRODUCTS_PER_PAGE = 12;
 
 export default async function Home({ searchParams }) {
@@ -23,32 +22,28 @@ export default async function Home({ searchParams }) {
     console.error("Data fetch error:", error);
   }
 
-  // 1. Extract Filter Parameters
-  const selectedCategory = params?.category || null;
-  const selectedBrand = params?.brand || ""; // Added brand param
+  // 1. Force 'Watches' as the default category if none is provided
+  const selectedCategory = params?.category || "Watches";
+  const selectedBrand = params?.brand || "";
   const searchQuery = params?.q?.toLowerCase().trim() || "";
   const currentPage = Number(params?.page) || 1;
 
   // 2. Apply Filtering Logic
   let filtered = allProducts;
 
-  // Filter by Category
-  if (selectedCategory) {
-    filtered = filtered.filter(
-      (p) =>
-        (p.category || "Watches").toLowerCase() ===
-        selectedCategory.toLowerCase()
-    );
-  }
+  // STRICT FILTER: Only show products matching the active category (Defaults to Watches)
+  filtered = filtered.filter(
+    (p) => (p.category || "Watches").toLowerCase() === selectedCategory.toLowerCase()
+  );
 
-  // Filter by Brand (Collection)
+  // Filter by Brand
   if (selectedBrand) {
     filtered = filtered.filter(
-      (p) => p.collection?.toLowerCase() === selectedBrand.toLowerCase()
+      (p) => p.collection?.toUpperCase() === selectedBrand.toUpperCase()
     );
   }
 
-  // Filter by Search Query
+  // Filter by Search
   if (searchQuery) {
     filtered = filtered.filter(
       (p) =>
@@ -74,7 +69,7 @@ export default async function Home({ searchParams }) {
         currentPage={safePage}
         categories={allCategories}
         selectedCategory={selectedCategory}
-        selectedBrand={selectedBrand} // Passed to MinimalUI
+        selectedBrand={selectedBrand}
         searchQuery={searchQuery}
         totalFiltered={filtered.length}
       />
