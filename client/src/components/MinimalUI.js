@@ -13,6 +13,7 @@ export default function MinimalUI({
   searchQuery = "",
   totalFiltered = 0,
 }) {
+
   const grouped = products.reduce((acc, p) => {
     const cat = p.category || "Uncategorised";
     if (!acc[cat]) acc[cat] = [];
@@ -21,7 +22,11 @@ export default function MinimalUI({
   }, {});
 
   const groupedCategories = Object.keys(grouped);
-  const showCategoryHeadings = !selectedCategory && !searchQuery && groupedCategories.length > 1;
+
+  const showCategoryHeadings =
+    !selectedCategory &&
+    !searchQuery &&
+    groupedCategories.length > 1;
 
   return (
     <section className="site-frame py-6 sm:py-10 lg:py-16">
@@ -29,6 +34,7 @@ export default function MinimalUI({
 
         {/* Search + Filters */}
         <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-5">
+
           <Suspense fallback={
             <div className="h-10 w-full max-w-md rounded-full bg-[var(--border)] animate-pulse" />
           }>
@@ -36,10 +42,14 @@ export default function MinimalUI({
           </Suspense>
 
           <div className="flex items-center justify-between gap-4 flex-wrap">
+
             <Suspense fallback={
               <div className="flex gap-2">
                 {categories.map((c) => (
-                  <div key={c} className="h-7 w-20 rounded-full bg-[var(--border)] animate-pulse" />
+                  <div
+                    key={c}
+                    className="h-7 w-20 rounded-full bg-[var(--border)] animate-pulse"
+                  />
                 ))}
               </div>
             }>
@@ -62,9 +72,11 @@ export default function MinimalUI({
         {/* Empty state */}
         {products.length === 0 ? (
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-10 text-center">
+
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
               {searchQuery ? "No results found" : "No products yet"}
             </p>
+
             <h2 className="mt-3 font-display text-2xl font-semibold text-[var(--foreground)]">
               {searchQuery
                 ? `Nothing matched "${searchQuery}"`
@@ -72,41 +84,65 @@ export default function MinimalUI({
                 ? `No ${selectedCategory} products available`
                 : "Upload products from the admin dashboard"}
             </h2>
+
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
               {searchQuery || selectedCategory
                 ? "Try a different filter or browse all products."
                 : "Add items in the admin dashboard and they will appear here automatically."}
             </p>
+
           </div>
         ) : (
           <>
             <div className="mt-6 space-y-10">
+
               {groupedCategories.map((cat) => (
                 <div key={cat}>
+
                   {showCategoryHeadings && (
                     <div className="mb-4 flex items-center gap-3">
-                      {/* Show category name exactly as typed in admin */}
+
                       <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
                         {cat}
                       </p>
+
                       <span className="flex-1 border-t border-[var(--border)]" />
+
                       <p className="text-[0.65rem] text-[var(--muted)]">
-                        {grouped[cat].length} {grouped[cat].length === 1 ? "item" : "items"}
+                        {grouped[cat].length}{" "}
+                        {grouped[cat].length === 1 ? "item" : "items"}
                       </p>
+
                     </div>
                   )}
+
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+
                     {grouped[cat].map((product) => (
-                      <ProductCard key={product._id || product.id} product={product} />
+                      <ProductCard
+                        key={product._id || product.id}
+                        product={product}
+                        currentPage={currentPage}
+                        selectedCategory={selectedCategory}
+                        searchQuery={searchQuery}
+                      />
                     ))}
+
                   </div>
                 </div>
               ))}
+
             </div>
 
             <Suspense fallback={null}>
-              <Pagination totalPages={totalPages} />
+              <Pagination
+                totalPages={totalPages}
+                currentPage={currentPage}
+                selectedCategory={selectedCategory}
+                searchQuery={searchQuery}
+              />
             </Suspense>
+
           </>
         )}
       </div>

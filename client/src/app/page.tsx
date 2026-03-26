@@ -16,18 +16,23 @@ export default async function Home({ searchParams }) {
       getProducts(),
       getStorefrontCategories(),
     ]);
+
     if (Array.isArray(liveProducts)) allProducts = liveProducts;
     if (Array.isArray(liveCategories)) allCategories = liveCategories;
   } catch {}
 
-  // Filter by selected category
   const selectedCategory = params?.category || null;
+
   let filtered = selectedCategory
-    ? allProducts.filter((p) => (p.category || "Watches").toLowerCase() === selectedCategory.toLowerCase())
+    ? allProducts.filter(
+        (p) =>
+          (p.category || "Watches").toLowerCase() ===
+          selectedCategory.toLowerCase()
+      )
     : allProducts;
 
-  // Filter by search query
   const searchQuery = params?.q?.toLowerCase().trim() || "";
+
   if (searchQuery) {
     filtered = filtered.filter(
       (p) =>
@@ -36,10 +41,10 @@ export default async function Home({ searchParams }) {
     );
   }
 
-  // Paginate
   const currentPage = Number(params?.page) || 1;
   const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
   const paginated = filtered.slice(
     (safePage - 1) * PRODUCTS_PER_PAGE,
     safePage * PRODUCTS_PER_PAGE
