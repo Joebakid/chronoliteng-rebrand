@@ -18,28 +18,36 @@ export default function MinimalUI({
   totalFiltered = 0,
 }) {
 
-  // Dynamically get unique brands from the product list
+  // 1. Default to 'Watches' if no category is explicitly selected by the user
+  const activeCategory = selectedCategory || "Watches";
+
+  // 2. Dynamically get unique brands based on the active category
   const availableBrands = useMemo(() => {
     const brands = products
+      .filter(p => (p.category || "Watches").toLowerCase() === activeCategory.toLowerCase())
       .map((p) => p.collection)
       .filter(Boolean);
     return Array.from(new Set(brands)).sort();
-  }, [products]);
+  }, [products, activeCategory]);
 
-  const grouped = products.reduce((acc, p) => {
-    const cat = p.category || "Uncategorised";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(p);
-    return acc;
-  }, {});
+  // 3. Group products but only for the active selection to ensure "one at a time" view
+  const filteredGrouped = useMemo(() => {
+    const grouped = products.reduce((acc, p) => {
+      const cat = p.category || "Watches";
+      // Only include the product if it matches the active category
+      if (cat.toLowerCase() === activeCategory.toLowerCase()) {
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(p);
+      }
+      return acc;
+    }, {});
+    return grouped;
+  }, [products, activeCategory]);
 
-  const groupedCategories = Object.keys(grouped);
+  const displayedCategories = Object.keys(filteredGrouped);
 
-  const showCategoryHeadings =
-    !selectedCategory &&
-    !searchQuery &&
-    !selectedBrand && 
-    groupedCategories.length > 1;
+  // We hide headings if only one category is being shown (which is now always the case)
+  const showCategoryHeadings = false; 
 
   return (
     <section className="site-frame py-6 sm:py-10 lg:py-16">
@@ -49,7 +57,6 @@ export default function MinimalUI({
         <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-6">
           
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            {/* Search Bar: Fills available space */}
             <div className="flex-1">
               <Suspense fallback={
                 <div className="h-10 w-full max-w-md rounded-full bg-[var(--border)] animate-pulse" />
@@ -58,7 +65,6 @@ export default function MinimalUI({
               </Suspense>
             </div>
 
-            {/* Brand Dropdown: Aligned with search */}
             <div className="shrink-0">
               <Suspense fallback={<div className="h-9 w-28 rounded-full bg-[var(--border)] animate-pulse" />}>
                 <BrandFilter 
@@ -69,18 +75,17 @@ export default function MinimalUI({
             </div>
           </div>
 
-          {/* --- SUB-HEADER: CATEGORIES --- */}
+          {/* --- SUB-HEADER: CATEGORIES (Watches / Fragrance Switcher) --- */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
               <Suspense fallback={<div className="h-8 w-24 rounded-full bg-[var(--border)] animate-pulse" />}>
                 <CategoryFilter
                   categories={categories}
-                  selectedCategory={selectedCategory}
+                  selectedCategory={activeCategory} // Controlled by our default logic
                 />
               </Suspense>
             </div>
 
-            {/* Results count indicator */}
             {(selectedCategory || searchQuery || selectedBrand) && (
               <p className="text-[0.6rem] font-black uppercase tracking-widest text-[var(--muted)] shrink-0 bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
                 {totalFiltered} {totalFiltered === 1 ? "item" : "items"}
@@ -89,50 +94,28 @@ export default function MinimalUI({
           </div>
         </div>
 
-        {/* --- PRODUCT GRID / EMPTY STATE --- */}
-        {products.length === 0 ? (
+        {/* --- PRODUCT GRID --- */}
+        {displayedCategories.length === 0 ? (
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-10 text-center">
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-              {searchQuery || selectedBrand ? "No results found" : "No products yet"}
+              Empty Collection
             </p>
-
             <h2 className="mt-3 font-display text-2xl font-semibold text-[var(--foreground)]">
-              {searchQuery
-                ? `Nothing matched "${searchQuery}"`
-                : selectedBrand
-                ? `No ${selectedBrand} items found`
-                : "Check back later"}
+              No {activeCategory} found
             </h2>
-
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-              Try removing filters or searching for something else.
-            </p>
           </div>
         ) : (
           <>
             <div className="mt-6 space-y-10">
-              {groupedCategories.map((cat) => (
+              {displayedCategories.map((cat) => (
                 <div key={cat}>
-                  {showCategoryHeadings && (
-                    <div className="mb-4 flex items-center gap-3">
-                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-                        {cat}
-                      </p>
-                      <span className="flex-1 border-t border-[var(--border)]" />
-                      <p className="text-[0.65rem] text-[var(--muted)]">
-                        {grouped[cat].length}{" "}
-                        {grouped[cat].length === 1 ? "item" : "items"}
-                      </p>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {grouped[cat].map((product) => (
+                    {filteredGrouped[cat].map((product) => (
                       <ProductCard
                         key={product._id || product.id}
                         product={product}
                         currentPage={currentPage}
-                        selectedCategory={selectedCategory}
+                        selectedCategory={activeCategory}
                         searchQuery={searchQuery}
                       />
                     ))}
@@ -145,7 +128,7 @@ export default function MinimalUI({
               <Pagination
                 totalPages={totalPages}
                 currentPage={currentPage}
-                selectedCategory={selectedCategory}
+                selectedCategory={activeCategory}
                 searchQuery={searchQuery}
               />
             </Suspense>
