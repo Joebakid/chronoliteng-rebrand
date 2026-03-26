@@ -1,11 +1,15 @@
+import { Suspense } from "react";
 import BackHomeButton from "@/components/BackHomeButton";
 
 export default function NotFound() {
   return (
     <main className="site-frame flex min-h-[calc(100vh-6.5rem)] flex-col justify-center py-10 sm:py-14 lg:py-16">
-      {/* Top Navigation Row */}
+      
+      {/* Top Navigation Row - Wrapped in Suspense to fix build error */}
       <div className="mb-8 flex justify-end">
-        <BackHomeButton />
+        <Suspense fallback={<div className="h-10 w-32 animate-pulse bg-[var(--border)] rounded-full" />}>
+          <BackHomeButton />
+        </Suspense>
       </div>
 
       {/* Main Content Card */}
