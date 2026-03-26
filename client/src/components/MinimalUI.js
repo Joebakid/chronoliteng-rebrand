@@ -12,13 +12,13 @@ export default function MinimalUI({
   totalPages = 1,
   currentPage = 1,
   categories = [],
-  selectedCategory = "Watches", // Defaulted to Watches
+  selectedCategory = "Watches",
   selectedBrand = "", 
   searchQuery = "",
   totalFiltered = 0,
 }) {
 
-  // Standardize Brands from the current 12 products
+  // Standardize Brands from the current 12 products for the dropdown
   const availableBrands = useMemo(() => {
     const brands = products
       .map((p) => p.collection?.trim())
@@ -63,17 +63,18 @@ export default function MinimalUI({
           </div>
         </div>
 
-        {/* --- GRID: 4 columns x 3 rows --- */}
+        {/* --- GRID --- */}
         {products.length === 0 ? (
           <div className="mt-10 rounded-[2rem] border border-dashed border-[var(--border)] bg-[var(--surface)] px-4 py-16 text-center">
             <h2 className="font-display text-2xl font-semibold text-[var(--foreground)] tracking-tight">
               No {selectedCategory} Found
             </h2>
-            <p className="mt-2 text-xs text-[var(--muted)]">Try adjusting your filters.</p>
+            <p className="mt-2 text-xs text-[var(--muted)]">Try adjusting your filters or category.</p>
           </div>
         ) : (
           <>
-            <div className="mt-8 animate-in fade-in duration-700">
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
+              {/* xl:grid-cols-4 + 12 items = Perfect 3 rows */}
               <div className="grid grid-cols-1 gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((product) => (
                   <ProductCard

@@ -109,16 +109,15 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         colors: form.colors ? form.colors.split(",").map((c) => c.trim()) : [],
         images: isEditing ? [...existingImages, ...imageUrls] : imageUrls,
       };
-    if (isEditing) {
-  await updateProduct(editingProduct.id, payload);
-} else {
-  await createProduct(payload);
-
-  // reset form after creating product
-  setForm(emptyForm);
-  setImagePreviews([]);
-  setExistingImages([]);
-}
+      
+      if (isEditing) {
+        await updateProduct(editingProduct.id, payload);
+      } else {
+        await createProduct(payload);
+        setForm(emptyForm);
+        setImagePreviews([]);
+        setExistingImages([]);
+      }
       onStatusChange({ type: "success", message: isEditing ? "Updated." : "Created." });
       onSuccess();
     } catch (err) {
@@ -222,33 +221,9 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             </div>
           </div>
 
-          {/* ── Transit ── */}
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4 space-y-3">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">Availability</p>
-
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div className="relative flex-shrink-0">
-                <input type="checkbox" checked={form.inTransit} onChange={setToggle("inTransit")} className="sr-only" />
-                <div className={`w-10 h-5 rounded-full transition-colors ${form.inTransit ? "bg-sky-500" : "bg-[var(--border)]"}`} />
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.inTransit ? "translate-x-5" : "translate-x-0"}`} />
-              </div>
-              <div>
-                <p className="text-sm font-bold leading-tight">In Transit</p>
-                <p className="text-[10px] text-[var(--muted)]">Ordered, not arrived yet</p>
-              </div>
-            </label>
-
-            {form.inTransit && (
-              <div className="space-y-1">
-                <label className={labelCls}>Transit Note</label>
-                <input value={form.transitNote} onChange={setField("transitNote")} placeholder="e.g. Via DHL, ETA 5 days" className={inputCls} />
-              </div>
-            )}
-          </div>
-
-          {/* ── Watch Specs ── */}
+          {/* ── Watch Technical Specs - ONLY VISIBLE FOR WATCHES ── */}
           {isWatchCategory && (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 space-y-3">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
               <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">Watch Specs</p>
 
               <div className="grid grid-cols-2 gap-2">
@@ -291,11 +266,35 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
               </div>
 
               <div className="space-y-1">
-                <label className={labelCls}>Variants</label>
+                <label className={labelCls}>Variants / Colors</label>
                 <input value={form.colors} onChange={setField("colors")} placeholder="Gold, Silver, Black" className={inputCls} />
               </div>
             </div>
           )}
+
+          {/* ── Transit ── */}
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4 space-y-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">Availability</p>
+
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div className="relative flex-shrink-0">
+                <input type="checkbox" checked={form.inTransit} onChange={setToggle("inTransit")} className="sr-only" />
+                <div className={`w-10 h-5 rounded-full transition-colors ${form.inTransit ? "bg-sky-500" : "bg-[var(--border)]"}`} />
+                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.inTransit ? "translate-x-5" : "translate-x-0"}`} />
+              </div>
+              <div>
+                <p className="text-sm font-bold leading-tight">In Transit</p>
+                <p className="text-[10px] text-[var(--muted)]">Ordered, not arrived yet</p>
+              </div>
+            </label>
+
+            {form.inTransit && (
+              <div className="space-y-1 animate-in fade-in slide-in-from-top-1">
+                <label className={labelCls}>Transit Note</label>
+                <input value={form.transitNote} onChange={setField("transitNote")} placeholder="e.g. Via DHL, ETA 5 days" className={inputCls} />
+              </div>
+            )}
+          </div>
 
           {/* ── Images ── */}
           <div className="space-y-3 px-0.5">
@@ -312,7 +311,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             {(imagePreviews.length > 0 || existingImages.length > 0) && (
               <div className="grid grid-cols-4 gap-2">
                 {existingImages.map((url, i) => (
-                  <div key={`exist-${i}`} className="relative aspect-square overflow-hidden rounded-xl border border-[var(--border)] bg-white">
+                  <div key={`exist-${i}`} className="relative aspect-square overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
                     <img
                       src={url}
                       className="h-full w-full object-cover cursor-pointer"
@@ -329,7 +328,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
                   </div>
                 ))}
                 {imagePreviews.map((url, i) => (
-                  <div key={`new-${i}`} className="relative aspect-square overflow-hidden rounded-xl border-2 border-[var(--accent)] bg-white">
+                  <div key={`new-${i}`} className="relative aspect-square overflow-hidden rounded-xl border-2 border-[var(--accent)] bg-white shadow-sm">
                     <img
                       src={url}
                       className="h-full w-full object-cover cursor-pointer"
@@ -343,7 +342,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
                     >
                       ×
                     </button>
-                    <div className="absolute bottom-1 left-1 bg-[var(--accent)] rounded-full px-1 py-0.5">
+                    <div className="absolute bottom-1 left-1 bg-[var(--accent)] rounded-full px-1 py-0.5 shadow-sm">
                       <span className="text-[6px] text-white font-bold uppercase">New</span>
                     </div>
                   </div>
@@ -354,7 +353,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
           <button
             disabled={loading}
-            className="w-full rounded-full bg-[var(--foreground)] py-3.5 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-xl transition active:scale-95 disabled:opacity-50"
+            className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-xl transition active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? "Saving..." : isEditing ? "Save Changes" : "Create Product"}
           </button>
