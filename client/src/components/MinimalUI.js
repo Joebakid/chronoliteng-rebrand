@@ -18,22 +18,21 @@ export default function MinimalUI({
   totalFiltered = 0,
 }) {
 
-  // 1. Default to 'Watches' if no category is explicitly selected by the user
+  // 1. Default to 'Watches'
   const activeCategory = selectedCategory || "Watches";
 
-  // 2. Standardize Brands: Trim, Uppercase, and remove duplicates [lattafa, Lattafa -> LATTAFA]
+  // 2. Standardize Brands & remove duplicates
   const availableBrands = useMemo(() => {
     const brands = products
       .filter(p => (p.category || "Watches").toLowerCase() === activeCategory.toLowerCase())
-      .map((p) => p.collection?.trim()) // Remove trailing spaces
+      .map((p) => p.collection?.trim())
       .filter(Boolean);
     
-    // Create unique set of Uppercase names, then sort
     const unique = Array.from(new Set(brands.map(b => b.toUpperCase()))).sort();
     return unique;
   }, [products, activeCategory]);
 
-  // 3. Group products strictly by active category
+  // 3. Filter products strictly by active category for the "one at a time" view
   const filteredGrouped = useMemo(() => {
     const grouped = products.reduce((acc, p) => {
       const cat = p.category || "Watches";
@@ -47,36 +46,31 @@ export default function MinimalUI({
   }, [products, activeCategory]);
 
   const displayedCategories = Object.keys(filteredGrouped);
-  const showCategoryHeadings = false; 
 
   return (
-    <section className="site-frame py-6 sm:py-10 lg:py-16">
-      <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-6 shadow-[var(--shadow)] sm:px-6 sm:py-10 lg:px-8">
+    <section className="site-frame py-4 sm:py-10 lg:py-16">
+      <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-6 shadow-[var(--shadow)] sm:px-6 sm:py-10 lg:px-8">
 
         {/* --- HEADER SECTION: SEARCH & BRAND --- */}
         <div className="flex flex-col gap-4 border-b border-[var(--border)] pb-6">
           
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1">
-              <Suspense fallback={
-                <div className="h-10 w-full max-w-md rounded-full bg-[var(--border)] animate-pulse" />
-              }>
+              <Suspense fallback={<div className="h-10 w-full rounded-full bg-[var(--border)] animate-pulse" />}>
                 <SearchBar initialQuery={searchQuery} />
               </Suspense>
             </div>
 
             <div className="shrink-0">
               <Suspense fallback={<div className="h-9 w-28 rounded-full bg-[var(--border)] animate-pulse" />}>
-                <BrandFilter 
-                  brands={availableBrands} 
-                />
+                <BrandFilter brands={availableBrands} />
               </Suspense>
             </div>
           </div>
 
           {/* --- SUB-HEADER: CATEGORIES --- */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
               <Suspense fallback={<div className="h-8 w-24 rounded-full bg-[var(--border)] animate-pulse" />}>
                 <CategoryFilter
                   categories={categories}
@@ -93,22 +87,25 @@ export default function MinimalUI({
           </div>
         </div>
 
-        {/* --- PRODUCT GRID --- */}
+        {/* --- PRODUCT GRID / EMPTY STATE --- */}
         {displayedCategories.length === 0 ? (
-          <div className="mt-6 rounded-[1.5rem] border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-10 text-center">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
-              Empty Collection
+          <div className="mt-8 rounded-[1.5rem] border border-dashed border-[var(--border)] bg-[var(--surface)] px-4 py-12 text-center">
+            <p className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-[var(--muted)] opacity-60">
+              {selectedBrand ? `${selectedBrand} Collection` : "Empty Collection"}
             </p>
-            <h2 className="mt-3 font-display text-2xl font-semibold text-[var(--foreground)]">
-              No {activeCategory} found
+            <h2 className="mt-3 font-display text-xl sm:text-2xl font-semibold text-[var(--foreground)]">
+              {selectedBrand 
+                ? `No ${selectedBrand} ${activeCategory} Found` 
+                : `No ${activeCategory} Found`}
             </h2>
+            <p className="mt-2 text-xs text-[var(--muted)]">Try selecting a different brand or clearing your search.</p>
           </div>
         ) : (
           <>
-            <div className="mt-6 space-y-10">
+            <div className="mt-6">
               {displayedCategories.map((cat) => (
-                <div key={cat}>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div key={cat} className="animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                     {filteredGrouped[cat].map((product) => (
                       <ProductCard
                         key={product._id || product.id}
@@ -123,14 +120,17 @@ export default function MinimalUI({
               ))}
             </div>
 
-            <Suspense fallback={null}>
-              <Pagination
-                totalPages={totalPages}
-                currentPage={currentPage}
-                selectedCategory={activeCategory}
-                searchQuery={searchQuery}
-              />
-            </Suspense>
+            <div className="mt-10 sm:mt-16">
+              <Suspense fallback={null}>
+                <Pagination
+                  totalPages={totalPages}
+                  currentPage={currentPage}
+                  selectedCategory={activeCategory}
+                  selectedBrand={selectedBrand} 
+                  searchQuery={searchQuery}
+                />
+              </Suspense>
+            </div>
           </>
         )}
       </div>
