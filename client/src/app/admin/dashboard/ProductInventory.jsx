@@ -17,7 +17,7 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
   const [page, setPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [confirmModal, setConfirmModal] = useState({ open: false, productId: null, productName: "" });
-  const [sendingToTransit, setSendingToTransit] = useState(null);
+  const [visibleProfits, setVisibleProfits] = useState({}); // Tracking which product profit is shown
 
   // 1. Extract Unique Categories
   const categories = useMemo(() => {
@@ -43,6 +43,10 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
   );
 
   const goTo = (p) => setPage(Math.min(Math.max(1, p), totalPages));
+
+  const toggleProfit = (id) => {
+    setVisibleProfits(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const handleDelete = async () => {
     await deleteProduct(confirmModal.productId);
@@ -97,6 +101,7 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
             const profit = hasMargin ? p.price - p.costPrice : null;
             const margin = hasMargin ? (((p.price - p.costPrice) / p.costPrice) * 100).toFixed(1) : null;
             const isProfit = margin !== null && parseFloat(margin) >= 0;
+            const isVisible = visibleProfits[p.id];
 
             return (
               <div key={p.id} className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm transition-all hover:border-[var(--muted)]">
@@ -107,7 +112,15 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
                     alt="" 
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-bold tracking-tight">{p.name}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="truncate text-[13px] font-bold tracking-tight">{p.name}</p>
+                      <button 
+                        onClick={() => toggleProfit(p.id)}
+                        className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md border transition-colors ${isVisible ? 'bg-[var(--accent)] text-white border-[var(--accent)]' : 'bg-[var(--surface)] text-[var(--muted)] border-[var(--border)]'}`}
+                      >
+                        {isVisible ? 'Hide Profit' : 'Show Profit'}
+                      </button>
+                    </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[7px] font-black uppercase bg-[var(--surface)] px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[var(--muted)]">
                         {p.category}
@@ -120,11 +133,12 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
                   </div>
                 </div>
 
-                {margin !== null && (
-                  <div className={`mb-4 flex items-center justify-between rounded-xl px-3 py-2 border text-[9px] font-black uppercase tracking-wider ${
+                {/* --- Revealable Profit Section --- */}
+                {isVisible && margin !== null && (
+                  <div className={`mb-4 flex items-center justify-between rounded-xl px-3 py-2 border text-[9px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-top-1 duration-200 ${
                     isProfit ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600" : "bg-red-500/5 border-red-500/20 text-red-500"
                   }`}>
-                    <span>{isProfit ? "▲ Profit" : "▼ Loss"}</span>
+                    <span>{isProfit ? "▲ Profit Analysis" : "▼ Loss Analysis"}</span>
                     <span>{isProfit ? "+" : ""}{fmt(profit)} ({isProfit ? "+" : ""}{margin}%)</span>
                   </div>
                 )}

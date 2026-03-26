@@ -9,12 +9,26 @@ export default function CategoryFilter({ categories = [], selectedCategory }) {
 
   const handleSelect = (cat) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (params.get("category") === cat) {
+    
+    // Check if we are deselecting the current category
+    const isCurrent = params.get("category") === cat;
+
+    if (isCurrent) {
       params.delete("category");
     } else {
       params.set("category", cat);
     }
+
+    // --- CRITICAL FIXES ---
+    // 1. Clear brand when changing categories to prevent "No products found" bugs
+    params.delete("brand"); 
+    
+    // 2. Clear search query to give a fresh start in the new category
+    params.delete("q"); 
+
+    // 3. Reset to page 1
     params.delete("page");
+
     router.push(`${pathname}?${params.toString()}`);
   };
 
@@ -26,10 +40,10 @@ export default function CategoryFilter({ categories = [], selectedCategory }) {
           <button
             key={cat}
             onClick={() => handleSelect(cat)}
-            className={`px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.16em] border transition ${
+            className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border transition-all duration-200 ${
               isActive
-                ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]"
-                : "bg-transparent text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)] shadow-sm"
+                : "bg-[var(--surface-strong)] text-[var(--muted)] border-[var(--border)] hover:text-[var(--foreground)] hover:border-[var(--muted)]"
             }`}
           >
             {cat}

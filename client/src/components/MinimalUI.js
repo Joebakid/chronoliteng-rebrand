@@ -21,20 +21,22 @@ export default function MinimalUI({
   // 1. Default to 'Watches' if no category is explicitly selected by the user
   const activeCategory = selectedCategory || "Watches";
 
-  // 2. Dynamically get unique brands based on the active category
+  // 2. Standardize Brands: Trim, Uppercase, and remove duplicates [lattafa, Lattafa -> LATTAFA]
   const availableBrands = useMemo(() => {
     const brands = products
       .filter(p => (p.category || "Watches").toLowerCase() === activeCategory.toLowerCase())
-      .map((p) => p.collection)
+      .map((p) => p.collection?.trim()) // Remove trailing spaces
       .filter(Boolean);
-    return Array.from(new Set(brands)).sort();
+    
+    // Create unique set of Uppercase names, then sort
+    const unique = Array.from(new Set(brands.map(b => b.toUpperCase()))).sort();
+    return unique;
   }, [products, activeCategory]);
 
-  // 3. Group products but only for the active selection to ensure "one at a time" view
+  // 3. Group products strictly by active category
   const filteredGrouped = useMemo(() => {
     const grouped = products.reduce((acc, p) => {
       const cat = p.category || "Watches";
-      // Only include the product if it matches the active category
       if (cat.toLowerCase() === activeCategory.toLowerCase()) {
         if (!acc[cat]) acc[cat] = [];
         acc[cat].push(p);
@@ -45,8 +47,6 @@ export default function MinimalUI({
   }, [products, activeCategory]);
 
   const displayedCategories = Object.keys(filteredGrouped);
-
-  // We hide headings if only one category is being shown (which is now always the case)
   const showCategoryHeadings = false; 
 
   return (
@@ -69,19 +69,18 @@ export default function MinimalUI({
               <Suspense fallback={<div className="h-9 w-28 rounded-full bg-[var(--border)] animate-pulse" />}>
                 <BrandFilter 
                   brands={availableBrands} 
-                  selectedBrand={selectedBrand} 
                 />
               </Suspense>
             </div>
           </div>
 
-          {/* --- SUB-HEADER: CATEGORIES (Watches / Fragrance Switcher) --- */}
+          {/* --- SUB-HEADER: CATEGORIES --- */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
               <Suspense fallback={<div className="h-8 w-24 rounded-full bg-[var(--border)] animate-pulse" />}>
                 <CategoryFilter
                   categories={categories}
-                  selectedCategory={activeCategory} // Controlled by our default logic
+                  selectedCategory={activeCategory}
                 />
               </Suspense>
             </div>
