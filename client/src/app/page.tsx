@@ -19,20 +19,36 @@ export default async function Home({ searchParams }) {
 
     if (Array.isArray(liveProducts)) allProducts = liveProducts;
     if (Array.isArray(liveCategories)) allCategories = liveCategories;
-  } catch {}
+  } catch (error) {
+    console.error("Data fetch error:", error);
+  }
 
+  // 1. Extract Filter Parameters
   const selectedCategory = params?.category || null;
-
-  let filtered = selectedCategory
-    ? allProducts.filter(
-        (p) =>
-          (p.category || "Watches").toLowerCase() ===
-          selectedCategory.toLowerCase()
-      )
-    : allProducts;
-
+  const selectedBrand = params?.brand || ""; // Added brand param
   const searchQuery = params?.q?.toLowerCase().trim() || "";
+  const currentPage = Number(params?.page) || 1;
 
+  // 2. Apply Filtering Logic
+  let filtered = allProducts;
+
+  // Filter by Category
+  if (selectedCategory) {
+    filtered = filtered.filter(
+      (p) =>
+        (p.category || "Watches").toLowerCase() ===
+        selectedCategory.toLowerCase()
+    );
+  }
+
+  // Filter by Brand (Collection)
+  if (selectedBrand) {
+    filtered = filtered.filter(
+      (p) => p.collection?.toLowerCase() === selectedBrand.toLowerCase()
+    );
+  }
+
+  // Filter by Search Query
   if (searchQuery) {
     filtered = filtered.filter(
       (p) =>
@@ -41,7 +57,7 @@ export default async function Home({ searchParams }) {
     );
   }
 
-  const currentPage = Number(params?.page) || 1;
+  // 3. Pagination Logic
   const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
 
@@ -58,6 +74,7 @@ export default async function Home({ searchParams }) {
         currentPage={safePage}
         categories={allCategories}
         selectedCategory={selectedCategory}
+        selectedBrand={selectedBrand} // Passed to MinimalUI
         searchQuery={searchQuery}
         totalFiltered={filtered.length}
       />
