@@ -7,13 +7,7 @@ import ProductGallery from "@/components/ProductGallery";
 import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
 
 export default function ProductDetailsView({ product }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
   if (!product) return null;
-
-  const description = product.description || "";
-  const shouldShowReadMore = description.length > 280;
-  const displayedDescription = isExpanded ? description : description.slice(0, 280) + "...";
 
   // Category Checks
   const category = product.category?.toLowerCase() || "";
@@ -47,7 +41,7 @@ export default function ProductDetailsView({ product }) {
       return value !== null && value !== undefined && value !== "" && typeof value !== 'object';
     })
     .map(([key, value]) => ({
-      // Clean label: "strap_type" -> "Strap Type"
+      // Clean label: "longevity_rating" -> "Longevity Rating"
       label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
       value: value
     }));
@@ -84,17 +78,9 @@ export default function ProductDetailsView({ product }) {
           </div>
 
           <div className="space-y-4">
-            <p className="text-lg leading-relaxed text-[var(--muted)] opacity-90 transition-all">
-              {displayedDescription}
+            <p className="text-lg leading-relaxed text-[var(--muted)] opacity-90">
+              {product.description}
             </p>
-            {shouldShowReadMore && (
-              <button 
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-[0.7rem] font-black uppercase tracking-widest text-[var(--foreground)] border-b-2 border-[var(--accent)] pb-1"
-              >
-                {isExpanded ? "Show Less" : "Read More"}
-              </button>
-            )}
           </div>
 
           {/* --- WATCH SPECS --- */}

@@ -49,12 +49,11 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         price: String(editingProduct.price || ""),
         costPrice: String(editingProduct.costPrice || ""),
         colors: Array.isArray(editingProduct.colors) ? editingProduct.colors.join(", ") : "",
-        images: [], // New uploads only
+        images: [], 
       });
       setExistingImages(editingProduct.images || []);
       
-      // Logic to pull out "Unknown" fields into Custom Fields for editing
-      const standardKeys = Object.keys(emptyForm).concat(['id', 'createdAt', 'updatedAt', '_id', '__v']);
+      const standardKeys = Object.keys(emptyForm).concat(['id', 'createdAt', 'updatedAt', '_id', '__v', 'slug', 'inStock']);
       const extraFields = Object.keys(editingProduct)
         .filter(key => !standardKeys.includes(key))
         .map(key => ({ label: key, value: String(editingProduct[key]) }));
@@ -120,7 +119,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         imageUrls = await Promise.all(form.images.map(uploadToCloudinary));
       }
 
-      // Convert custom fields array back to object properties
       const extras = customFields.reduce((acc, field) => {
         if (field.label) acc[field.label] = field.value;
         return acc;
@@ -139,8 +137,15 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         await updateProduct(editingProduct.id, payload);
       } else {
         await createProduct(payload);
-        setForm(emptyForm);
       }
+
+      // --- CLEAR FORM LOGIC ---
+      setForm(emptyForm);
+      setCustomFields([]);
+      setImagePreviews([]);
+      setExistingImages([]);
+      // ------------------------
+
       onStatusChange({ type: "success", message: "Saved successfully." });
       onSuccess();
     } catch (err) {
@@ -176,7 +181,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 pb-20">
-          {/* Basic Info */}
           <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4">
             <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">Core Details</p>
             <div className="space-y-1">
@@ -195,6 +199,17 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
                 <label className={labelCls}>Brand</label>
                 <input value={form.collection} onChange={setField("collection")} placeholder="Brand" className={inputCls} />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelCls}>Description</label>
+              <textarea 
+                value={form.description} 
+                onChange={setField("description")} 
+                placeholder="Product description..." 
+                rows={3} 
+                className={`${inputCls} resize-none`} 
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -216,9 +231,8 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             )}
           </div>
 
-          {/* Perfume Specifics */}
           {isPerfumeCategory && (
-            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2">
+            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-3">
               <p className="text-[9px] font-black uppercase tracking-widest text-sky-500">Perfume Specs</p>
               <div className="space-y-1">
                 <label className={labelCls}>Size (mL)</label>
@@ -227,7 +241,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             </div>
           )}
 
-          {/* Watch Specs */}
           {isWatchCategory && (
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 space-y-3">
               <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">Watch Specs</p>
@@ -247,7 +260,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             </div>
           )}
 
-          {/* Additional / Custom Fields */}
           <div className="rounded-2xl border border-dashed border-[var(--border)] p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-[9px] font-black uppercase tracking-widest text-[var(--muted)]">Custom Fields</p>
@@ -262,7 +274,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             ))}
           </div>
 
-          {/* Availability */}
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={form.inTransit} onChange={setToggle("inTransit")} className="sr-only" />
@@ -272,7 +283,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             {form.inTransit && <input value={form.transitNote} onChange={setField("transitNote")} placeholder="Notes..." className={`${inputCls} mt-2`} />}
           </div>
 
-          {/* Images */}
           <div className="space-y-3">
             <label className={labelCls}>Images</label>
             <div className="relative h-20 rounded-2xl border-2 border-dashed border-[var(--border)] flex items-center justify-center">
