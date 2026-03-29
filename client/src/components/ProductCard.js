@@ -52,12 +52,12 @@ export default function ProductCard({
     <Link href={productUrl} className="group block h-full">
       <article className="flex h-full flex-col overflow-hidden rounded-[1.15rem] border border-[var(--border)] bg-[var(--card)] transition duration-300 hover:-translate-y-1">
         
-        {/* Image */}
-        <div className="relative aspect-[1.28] w-full overflow-hidden">
+        {/* Image Container - Fixed height with object-contain to always show 100% of image */}
+        <div className="relative w-full overflow-hidden bg-[var(--surface-strong)]/20 p-4 flex items-center justify-center" style={{ height: "220px" }}>
           <ImageWithLoader
             src={imageSrc}
             alt={product.name}
-            className="h-full w-full"
+            className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
           />
 
           <span className="absolute left-3 top-3 z-20 rounded-full border border-[var(--border)] bg-[var(--nav)] px-3 py-1 text-[0.55rem] font-bold uppercase tracking-widest backdrop-blur-md">

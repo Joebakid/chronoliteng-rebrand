@@ -5,13 +5,21 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAppContext } from "@/app/state/AppContext";
+import { getPromos } from "@/lib/promoApi";
 
 import CartItemsList from "./CartItemsList";
 import CartSummary from "./CartSummary";
 import DeliveryPreview from "./DeliveryPreview";
-import Link from "next/link"; // Added for Success View links
+import Link from "next/link";
 
 const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+
+const formatPrice = (amount) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(amount);
 
 export default function CartView() {
   const router = useRouter();
@@ -35,15 +43,25 @@ export default function CartView() {
     state: "",
   });
 
+  // --- PROMO STATES ---
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState("");
+  const [isApplying, setIsApplying] = useState(false);
+
   const [checkoutError, setCheckoutError] = useState("");
   const [paystackLoading, setPaystackLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false); // New Success State
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const paystackLoadedRef = useRef(false);
 
+  // --- PRICING CALCULATIONS ---
   const deliveryFee = deliveryInfo?.state?.toLowerCase() === "delta" ? 2500 : 4000;
-  const finalTotal = cartTotal + deliveryFee;
+  
+  // Calculate discount amount from subtotal
+  const discountAmount = appliedPromo ? (cartTotal * (appliedPromo.discount / 100)) : 0;
+  const finalTotal = cartTotal - discountAmount + deliveryFee;
 
   useEffect(() => {
     if (!user) return;
@@ -65,6 +83,60 @@ export default function CartView() {
       })
       .catch(console.error);
   }, [user]);
+
+  // --- PROMO HANDLERS ---
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setIsApplying(true);
+    setPromoError("");
+
+    try {
+      const allPromos = await getPromos();
+      const code = promoInput.toUpperCase().trim();
+      const match = allPromos.find((p) => p.code === code);
+
+      if (!match) throw new Error("Invalid promo code");
+      if (match.expiryDate < Date.now()) throw new Error("This code has expired");
+      
+      // 1. Eligibility: Minimum Spend Check
+      if (match.minSpend > 0 && cartTotal < match.minSpend) {
+        throw new Error(`Spend at least ${formatPrice(match.minSpend)} to use this code`);
+      }
+
+      // 2. Eligibility: New User / First Order Check
+      if (match.isNewUserOnly) {
+        if (!user) throw new Error("Please log in to use this first-order promo");
+        
+        const userRef = doc(db, "users", user.id || user.uid);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.data();
+
+        // Check if user has already made a purchase
+        if (userData?.purchaseCount > 0) {
+          throw new Error("This code is only for your first order!");
+        }
+      }
+
+      // 3. Eligibility: Specific Product Check
+      if (match.specificProductId) {
+        const hasItem = cartItems.some(item => item.id === match.specificProductId);
+        if (!hasItem) throw new Error("This code does not apply to items in your cart");
+      }
+
+      setAppliedPromo(match);
+      setPromoInput("");
+    } catch (err) {
+      setPromoError(err.message);
+      setAppliedPromo(null);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setPromoError("");
+  };
 
   const loadPaystackScript = () => {
     if (paystackLoadedRef.current) return Promise.resolve();
@@ -104,6 +176,8 @@ export default function CartView() {
           delivery: deliveryInfo,
           items: cartItems,
           total: finalTotal,
+          promoCode: appliedPromo?.code || null,
+          discountValue: discountAmount
         }),
       });
 
@@ -111,7 +185,7 @@ export default function CartView() {
       if (!res.ok || !data.success) throw new Error(data.error || "Payment verification failed");
 
       clearCart();
-      setIsSuccess(true); // Trigger Success View
+      setIsSuccess(true);
     } catch (err) {
       setCheckoutError(err.message || "Unable to verify payment. Please contact support.");
     } finally {
@@ -150,6 +224,7 @@ export default function CartView() {
               display_name: "Address",
               value: [deliveryInfo.address, deliveryInfo.city, deliveryInfo.state].filter(Boolean).join(", "),
             },
+            { display_name: "Promo Code Used", value: appliedPromo?.code || "None" }
           ],
         },
         callback: ({ reference }) => {
@@ -166,7 +241,6 @@ export default function CartView() {
     }
   };
 
-  // --- SUCCESS VIEW COMPONENT ---
   if (isSuccess) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
@@ -211,6 +285,49 @@ export default function CartView() {
           removeFromCart={removeFromCart}
         />
 
+        {/* --- PROMO SECTION --- */}
+        <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4 shadow-sm">
+          <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-[var(--muted)]">
+            Promotional Code
+          </h3>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="ENTER CODE"
+              className="flex-1 rounded-xl border border-[var(--border)] bg-transparent p-3 text-sm outline-none focus:border-[var(--accent)] transition uppercase"
+              value={promoInput}
+              onChange={(e) => setPromoInput(e.target.value)}
+            />
+            <button
+              onClick={handleApplyPromo}
+              disabled={isApplying || !promoInput.trim()}
+              className="rounded-xl bg-[var(--foreground)] px-6 text-xs font-bold uppercase text-[var(--background)] disabled:opacity-50 transition active:scale-95"
+            >
+              {isApplying ? "..." : "Apply"}
+            </button>
+          </div>
+          
+          {promoError && (
+            <p className="text-[10px] font-bold text-red-500 uppercase px-1">{promoError}</p>
+          )}
+          
+          {appliedPromo && (
+            <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded">
+                  {appliedPromo.discount}% OFF
+                </span>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase">
+                  Code "{appliedPromo.code}" active
+                </p>
+              </div>
+              <button onClick={removePromo} className="text-[10px] font-bold text-emerald-600 underline uppercase hover:text-emerald-700">
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
+
         {!user && (
           <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4 shadow-sm">
             <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-[var(--muted)]">
@@ -220,26 +337,26 @@ export default function CartView() {
               <input
                 type="text"
                 placeholder="Full Name"
-                className="rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-orange-500 transition"
+                className="rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-[var(--accent)] transition"
                 value={deliveryInfo.name}
                 onChange={(e) => setDeliveryInfo({ ...deliveryInfo, name: e.target.value })}
               />
               <input
                 type="email"
                 placeholder="Email Address"
-                className="rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-orange-500 transition"
+                className="rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-[var(--accent)] transition"
                 value={deliveryInfo.email}
                 onChange={(e) => setDeliveryInfo({ ...deliveryInfo, email: e.target.value })}
               />
               <input
                 type="tel"
                 placeholder="Phone Number"
-                className="rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-orange-500 transition"
+                className="rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-[var(--accent)] transition"
                 value={deliveryInfo.phone}
                 onChange={(e) => setDeliveryInfo({ ...deliveryInfo, phone: e.target.value })}
               />
               <select
-                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-sm outline-none focus:border-orange-500 transition appearance-none"
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-sm outline-none focus:border-[var(--accent)] transition appearance-none"
                 value={deliveryInfo.state}
                 onChange={(e) => setDeliveryInfo({ ...deliveryInfo, state: e.target.value })}
               >
@@ -253,7 +370,7 @@ export default function CartView() {
             </div>
             <textarea
               placeholder="Full Delivery Address"
-              className="w-full rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-orange-500 transition"
+              className="w-full rounded-xl border border-[var(--border)] bg-transparent p-3.5 text-sm outline-none focus:border-[var(--accent)] transition"
               rows="2"
               value={deliveryInfo.address}
               onChange={(e) => setDeliveryInfo({ ...deliveryInfo, address: e.target.value })}
@@ -275,6 +392,7 @@ export default function CartView() {
           cartCount={cartCount}
           cartTotal={cartTotal}
           deliveryFee={deliveryFee}
+          discountAmount={discountAmount}
           clearCart={clearCart}
           onCheckout={handlePaystack}
           loading={paystackLoading || verifying}

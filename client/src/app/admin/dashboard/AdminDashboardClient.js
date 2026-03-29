@@ -16,6 +16,7 @@ import OrdersTab from "./OrdersTab";
 import InTransitTab from "./InTransitTab";
 import PhysicalSalesTab from "./PhysicalSalesTab";
 import CategoriesTab from "./CategoriesTab";
+import PromosTab from "./PromosTab"; // Matches the new file name
 import PageLoader from "@/components/PageLoader";
 
 export default function AdminDashboardClient() {
@@ -94,7 +95,6 @@ export default function AdminDashboardClient() {
   const walkInCount = physicalSales.length;
 
   return (
-    // FIX: Added 'w-full max-w-[100vw] overflow-x-hidden' to prevent dragging
     <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 pb-20 overflow-x-hidden">
 
       {/* Status banner */}
@@ -111,7 +111,7 @@ export default function AdminDashboardClient() {
         </div>
       )}
 
-      {/* Row 1: Stat cards - Ensure DashboardStats handles grid internally */}
+      {/* Stat Cards */}
       <DashboardStats
         analytics={analytics}
         products={products}
@@ -119,20 +119,13 @@ export default function AdminDashboardClient() {
         fetching={fetching}
       />
 
-      {/* Row 2: Charts/Profit - Switched to grid-cols-1 by default, 2 on LG */}
+      {/* Charts / Profit */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DashboardMonthCard
-          orders={orders}
-          physicalSales={physicalSales}
-          loading={loadingOrders}
-        />
-        <DashboardProfitCard
-          netProfit={netProfit}
-          loading={loadingOrders}
-        />
+        <DashboardMonthCard orders={orders} physicalSales={physicalSales} loading={loadingOrders} />
+        <DashboardProfitCard netProfit={netProfit} loading={loadingOrders} />
       </div>
 
-      {/* Tab navigation - Wrapped to prevent overflow if tabs are many */}
+      {/* Navigation */}
       <div className="sticky top-0 z-30 bg-[var(--background)] py-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <DashboardTabs
           activeTab={activeTab}
@@ -142,38 +135,27 @@ export default function AdminDashboardClient() {
         />
       </div>
 
-      {/* Tab content - Ensure components inside use responsive layouts */}
+      {/* Content */}
       <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
         <div className="min-h-[400px] w-full">
           {activeTab === "Products" && (
-            <ProductsTab
-              products={products}
-              fetching={fetching}
-              onRefresh={fetchAll}
-              onStatusChange={setStatus}
-            />
+            <ProductsTab products={products} fetching={fetching} onRefresh={fetchAll} onStatusChange={setStatus} />
           )}
           {activeTab === "Walk-in" && (
-            <PhysicalSalesTab
-              products={products}
-              onSaleRecorded={handleSaleRecorded}
-            />
+            <PhysicalSalesTab products={products} onSaleRecorded={handleSaleRecorded} />
           )}
           {activeTab === "In Transit" && (
-            <InTransitTab
-              products={products}
-              fetching={fetching}
-              onRefresh={fetchAll}
-            />
+            <InTransitTab products={products} fetching={fetching} onRefresh={fetchAll} />
+          )}
+          {/* Renders the new Promotions Tab */}
+          {activeTab === "Promotions" && (
+            <PromosTab products={products} onStatusChange={setStatus} />
           )}
           {activeTab === "Users" && (
             <UsersTab users={users} fetching={fetching} />
           )}
           {activeTab === "Orders" && (
-            <OrdersTab
-              orders={orders}
-              loadingOrders={loadingOrders}
-            />
+            <OrdersTab orders={orders} loadingOrders={loadingOrders} />
           )}
           {activeTab === "Settings" && (
             <CategoriesTab />

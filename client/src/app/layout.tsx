@@ -4,11 +4,9 @@ import Footer from "@/components/Footer";
 import Providers from "./providers";
 import { bodyFont, displayFont } from "./fonts";
 import { Analytics } from "@vercel/analytics/react";
+import type { Metadata, Viewport } from "next";
 
-/**
- * PRODUCTION SEO & ICON METADATA
- */
-export const metadata = {
+export const metadata: Metadata = {
   metadataBase: new URL("https://chronolite.com.ng"),
 
   title: {
@@ -28,33 +26,21 @@ export const metadata = {
 
   authors: [{ name: "Favour Nwajei" }],
 
-  // --- ICONS ---
   icons: {
     icon: [
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon.ico" },
     ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     other: [
-      {
-        rel: "android-chrome",
-        url: "/android-chrome-192x192.png",
-        sizes: "192x192",
-      },
-      {
-        rel: "android-chrome",
-        url: "/android-chrome-512x512.png",
-        sizes: "512x512",
-      },
+      { rel: "android-chrome", url: "/android-chrome-192x192.png" },
+      { rel: "android-chrome", url: "/android-chrome-512x512.png" },
     ],
   },
 
   manifest: "/site.webmanifest",
 
-  // --- OPEN GRAPH ---
   openGraph: {
     type: "website",
     locale: "en_NG",
@@ -65,34 +51,31 @@ export const metadata = {
     siteName: "Chronolite",
     images: [
       {
-        url: "https://chronolite.com.ng/og-image.jpg",
+        // ✅ Use relative path — metadataBase will prepend the domain
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
         type: "image/jpeg",
-        alt: "Chronolite Luxury Watches",
+        alt: "Chronolite Luxury Watches Nigeria",
       },
     ],
   },
 
-  // --- TWITTER ---
   twitter: {
     card: "summary_large_image",
     title: "Chronolite | Luxury Timepieces",
     description: "Craftsmanship excellence in every tick.",
-    images: ["https://chronolite.com.ng/og-image.jpg"],
+    // ✅ Use relative path here too
+    images: ["/og-image.jpg"],
   },
 
-  // --- ROBOTS ---
   robots: {
     index: true,
     follow: true,
   },
 };
 
-/**
- * VIEWPORT
- */
-export const viewport = {
+export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -127,14 +110,12 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-
       <body className="flex min-h-screen flex-col antialiased text-[var(--foreground)] bg-[var(--background)]">
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
         </Providers>
-
         <Analytics />
       </body>
     </html>

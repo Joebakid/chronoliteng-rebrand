@@ -2,10 +2,11 @@
 
 const TABS = [
   { key: "Products", short: "Products" },
+  { key: "Orders", short: "Orders" },
   { key: "Walk-in", short: "Walk-in" },
   { key: "In Transit", short: "Transit" },
+  { key: "Promotions", short: "Promos" }, // Entry for your new Promotions tab
   { key: "Users", short: "Users" },
-  { key: "Orders", short: "Orders" },
   { key: "Settings", short: "Settings" },
 ];
 
@@ -33,6 +34,11 @@ export default function DashboardTabs({
 
             {/* Mobile label */}
             <span className="sm:hidden">{short}</span>
+
+            {/* Visual indicator for Promotions */}
+            {key === "Promotions" && (
+              <span className="text-[10px]">🎟️</span>
+            )}
 
             {key === "In Transit" && inTransitCount > 0 && (
               <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-sky-500 text-[9px] font-black text-white leading-none">
