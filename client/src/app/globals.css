@@ -55,6 +55,15 @@ body {
   overflow-x: hidden;
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* GLOBAL VISIBILITY RESET: Forces text to follow theme variables */
 /* h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input {
   color: var(--foreground) !important;
