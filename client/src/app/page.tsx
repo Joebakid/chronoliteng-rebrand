@@ -22,28 +22,26 @@ export default async function Home({ searchParams }) {
     console.error("Data fetch error:", error);
   }
 
-  // 1. Force 'Watches' as the default category if none is provided
+  // 1. Setup Filters
   const selectedCategory = params?.category || "Watches";
   const selectedBrand = params?.brand || "";
   const searchQuery = params?.q?.toLowerCase().trim() || "";
   const currentPage = Number(params?.page) || 1;
 
-  // 2. Apply Filtering Logic
-  let filtered = allProducts;
-
-  // STRICT FILTER: Only show products matching the active category (Defaults to Watches)
-  filtered = filtered.filter(
+  // 2. Filter by Category FIRST (to get all possible brands for this category)
+  const categoryProducts = allProducts.filter(
     (p) => (p.category || "Watches").toLowerCase() === selectedCategory.toLowerCase()
   );
 
-  // Filter by Brand
+  // 3. Apply Brand & Search filters for the Grid display
+  let filtered = categoryProducts;
+
   if (selectedBrand) {
     filtered = filtered.filter(
-      (p) => p.collection?.toUpperCase() === selectedBrand.toUpperCase()
+      (p) => p.collection?.trim().toUpperCase() === selectedBrand.toUpperCase()
     );
   }
 
-  // Filter by Search
   if (searchQuery) {
     filtered = filtered.filter(
       (p) =>
@@ -52,7 +50,7 @@ export default async function Home({ searchParams }) {
     );
   }
 
-  // 3. Pagination Logic
+  // 4. Pagination Logic
   const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
 
@@ -64,7 +62,8 @@ export default async function Home({ searchParams }) {
   return (
     <main className="pb-8">
       <MinimalUI
-        products={paginated}
+        products={paginated}           // The 12 items to show
+        allProducts={categoryProducts} // ALL products in this category (for the Brand list)
         totalPages={totalPages}
         currentPage={safePage}
         categories={allCategories}

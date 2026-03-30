@@ -8,7 +8,8 @@ import SearchBar from "@/components/SearchBar";
 import { Suspense, useMemo } from "react";
 
 export default function MinimalUI({
-  products = [],
+  products = [],        // This remains the paginated list (e.g., 12 items)
+  allProducts = [],     // <--- ADD THIS: The full inventory list from the server
   totalPages = 1,
   currentPage = 1,
   categories = [],
@@ -18,15 +19,26 @@ export default function MinimalUI({
   totalFiltered = 0,
 }) {
 
-  // Standardize Brands from the current 12 products for the dropdown
+  /**
+   * Extract brands from ALL products, not just the current page.
+   * We also normalize them to Title Case so "casio" and "CASIO" don't duplicate.
+   */
   const availableBrands = useMemo(() => {
-    const brands = products
-      .map((p) => p.collection?.trim())
+    // If you don't have allProducts, fall back to products (current page)
+    const source = allProducts.length > 0 ? allProducts : products;
+    
+    const brands = source
+      .map((p) => {
+        const b = p.collection?.trim();
+        if (!b) return null;
+        // Normalize: "casio" -> "Casio"
+        return b.charAt(0).toUpperCase() + b.slice(1).toLowerCase();
+      })
       .filter(Boolean);
     
-    const unique = Array.from(new Set(brands.map(b => b.toUpperCase()))).sort();
-    return unique;
-  }, [products]);
+    // Return unique, sorted list
+    return Array.from(new Set(brands)).sort();
+  }, [allProducts, products]);
 
   return (
     <section className="site-frame py-4 sm:py-10 lg:py-16">
@@ -42,6 +54,7 @@ export default function MinimalUI({
             </div>
             <div className="shrink-0">
               <Suspense fallback={<div className="h-10 w-32 rounded-full bg-[var(--border)] animate-pulse" />}>
+                {/* BrandFilter now receives the global brand list */}
                 <BrandFilter brands={availableBrands} />
               </Suspense>
             </div>
@@ -74,7 +87,6 @@ export default function MinimalUI({
         ) : (
           <>
             <div className="mt-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
-              {/* xl:grid-cols-4 + 12 items = Perfect 3 rows */}
               <div className="grid grid-cols-1 gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((product) => (
                   <ProductCard
