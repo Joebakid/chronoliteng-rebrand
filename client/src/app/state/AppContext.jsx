@@ -37,28 +37,23 @@ export function AppProvider({ children }) {
 
   // Firebase auth state listener
   useEffect(() => {
-    console.log("--- Auth State Listener Triggered ---");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        console.log("Firebase User detected:", firebaseUser.email);
         try {
           const snap = await getDoc(doc(db, "users", firebaseUser.uid));
           const profile = snap.exists() ? snap.data() : {};
           const isAdmin = profile.isAdmin || false;
 
-          // REMOVED: Email verification requirement to allow instant login
           setUser({
             id: firebaseUser.uid,
             name: profile.name || firebaseUser.displayName || "Member",
             email: firebaseUser.email,
             isAdmin,
           });
-          console.log("App User State Set:", firebaseUser.email, "Admin:", isAdmin);
         } catch (err) {
           console.error("Error fetching user profile:", err);
         }
       } else {
-        console.log("No Firebase User - User state set to null");
         setUser(null);
       }
       setAuthLoading(false);
@@ -82,56 +77,39 @@ export function AppProvider({ children }) {
   }, [cartItems]);
 
   async function signUp({ name, email, password }) {
-    console.log("--- Starting SignUp Process ---");
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("Firebase Auth User Created:", credential.user.uid);
-
-      // Update Firebase Profile Display Name
       await updateProfile(credential.user, { displayName: name });
-
-      // Save to Firestore
       await setDoc(doc(db, "users", credential.user.uid), {
         name,
         email,
         isAdmin: false,
         createdAt: new Date().toISOString(),
       });
-      console.log("Firestore User Document Created");
-
-      // NOTE: We no longer sign out here. We let the user stay logged in.
       return { message: "Welcome to Chronolite!" };
     } catch (err) {
-      console.error("SignUp Error:", err.code, err.message);
       throw err;
     }
   }
 
   async function signIn({ email, password }) {
-    console.log("--- Starting SignIn Process ---");
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Firebase Auth SignIn Successful");
-
       const snap = await getDoc(doc(db, "users", credential.user.uid));
       const profile = snap.exists() ? snap.data() : {};
       const isAdmin = profile.isAdmin || false;
-
-      // REMOVED: Strict email verification check
-      console.log("SignIn Complete. isAdmin:", isAdmin);
       return { ...credential.user, isAdmin };
     } catch (err) {
-      console.error("SignIn Error:", err.code, err.message);
       throw err;
     }
   }
 
   async function signOut() {
-    console.log("--- Signing Out ---");
     await firebaseSignOut(auth);
     setUser(null);
   }
 
+  // UPDATED: addToCart to support initial image selection
   function addToCart(product) {
     setCartItems((currentItems) => {
       const existingItem = currentItems.find((item) => item.slug === product.slug);
@@ -142,7 +120,8 @@ export function AppProvider({ children }) {
             : item
         );
       }
-      return [...currentItems, { ...product, quantity: 1 }];
+      // Ensure we keep the selected image if one was passed in the product object
+      return [...currentItems, { ...product, quantity: 1, selectedImage: product.selectedImage || null }];
     });
   }
 
@@ -152,11 +131,22 @@ export function AppProvider({ children }) {
     );
   }
 
-  function updateCartQuantity(slug, nextQuantity) {
-    if (nextQuantity <= 0) { removeFromCart(slug); return; }
+  // UPDATED: Support for changing the variant image
+  function updateCartQuantity(slug, nextQuantity, selectedImage = null) {
+    if (nextQuantity <= 0) {
+      removeFromCart(slug);
+      return;
+    }
     setCartItems((currentItems) =>
       currentItems.map((item) =>
-        item.slug === slug ? { ...item, quantity: nextQuantity } : item
+        item.slug === slug 
+          ? { 
+              ...item, 
+              quantity: nextQuantity, 
+              // Only update the image if a new one is provided, otherwise keep existing
+              selectedImage: selectedImage || item.selectedImage 
+            } 
+          : item
       )
     );
   }

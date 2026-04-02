@@ -85,9 +85,23 @@ function buildOrderEmailHtml({ userName, items, total, reference, delivery }) {
 </html>`;
 }
 
+// Resolves the best available image from an incoming cart item.
+// CartView sends `selectedVariantImage` as the primary field.
+// We fall back through every possible field name so nothing is lost.
+function resolveItemImage(item) {
+  return (
+    item.selectedVariantImage ||
+    item.selectedImage ||
+    item.image ||
+    item.thumbnail ||
+    (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : "") ||
+    ""
+  );
+}
+
 export async function POST(req) {
   try {
-    const { reference, user, delivery, items, total } = await req.json();
+    const { reference, user, delivery, items, total, promoCode, discountValue } = await req.json();
 
     if (!reference) {
       return NextResponse.json({ error: "Missing payment reference" }, { status: 400 });
@@ -118,12 +132,11 @@ export async function POST(req) {
       );
     }
 
-    /* 2. Save verified order with delivery info */
+    /* 2. Save verified order to Firestore */
     const orderRef = await addDoc(collection(db, "orders"), {
       userId: user?.id || user?.email || "guest",
       userEmail: user?.email || "",
       userName: user?.name || "",
-      // Delivery details attached to every order
       delivery: {
         name: delivery?.name || user?.name || "",
         phone: delivery?.phone || "",
@@ -131,13 +144,15 @@ export async function POST(req) {
         city: delivery?.city || "",
         state: delivery?.state || "",
       },
+      // Each item is saved with `selectedVariantImage` so the admin
+      // OrdersTab can always find and display the correct watch photo.
       items: items.map((item) => ({
         slug: item.slug || item.id || "",
         name: item.name,
         price: Number(item.price || 0),
         quantity: item.quantity,
         collection: item.collection || "",
-        image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "",
+        selectedVariantImage: resolveItemImage(item),
       })),
       total: paidAmount,
       status: "paid",
@@ -149,6 +164,7 @@ export async function POST(req) {
         paidAt: paystackData.data.paid_at,
         customerEmail: paystackData.data.customer?.email,
       },
+      ...(promoCode ? { promoCode, discountValue: Number(discountValue || 0) } : {}),
       createdAt: new Date(),
     });
 
