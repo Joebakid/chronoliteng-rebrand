@@ -16,7 +16,7 @@ import OrdersTab from "./OrdersTab";
 import InTransitTab from "./InTransitTab";
 import PhysicalSalesTab from "./PhysicalSalesTab";
 import CategoriesTab from "./CategoriesTab";
-import PromosTab from "./PromosTab"; // Matches the new file name
+import PromosTab from "./PromosTab"; 
 import PageLoader from "@/components/PageLoader";
 
 export default function AdminDashboardClient() {
@@ -32,6 +32,10 @@ export default function AdminDashboardClient() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [status, setStatus] = useState({ type: "", message: "" });
+
+  // NEW: State to track which month the user is viewing in the dropdown
+  const [viewingMonth, setViewingMonth] = useState(new Date().getMonth());
+  const [viewingYear, setViewingYear] = useState(new Date().getFullYear());
 
   const [analytics, setAnalytics] = useState({
     totalProducts: 0,
@@ -90,14 +94,27 @@ export default function AdminDashboardClient() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
-  const netProfit = calcProfit(orders, physicalSales, products);
+  // UPDATED: Calculate profit using the dynamic viewing month/year
+  const netProfit = calcProfit(orders, physicalSales, products, viewingMonth, viewingYear);
+  
+  // UPDATED: Calculate filtered sales count to toggle the "No Activity" badge correctly
+  const monthlySalesCount = [
+    ...orders.filter(o => {
+      const d = new Date(o.createdAt);
+      return d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
+    }),
+    ...physicalSales.filter(s => {
+      const d = new Date(s.createdAt);
+      return d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
+    })
+  ].length;
+
   const inTransitCount = products.filter((p) => p.inTransit).length;
   const walkInCount = physicalSales.length;
 
   return (
     <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 pb-20 overflow-x-hidden">
 
-      {/* Status banner */}
       {status.message && (
         <div className={`rounded-2xl px-4 py-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
           status.type === "error"
@@ -111,7 +128,6 @@ export default function AdminDashboardClient() {
         </div>
       )}
 
-      {/* Stat Cards */}
       <DashboardStats
         analytics={analytics}
         products={products}
@@ -119,13 +135,23 @@ export default function AdminDashboardClient() {
         fetching={fetching}
       />
 
-      {/* Charts / Profit */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DashboardMonthCard orders={orders} physicalSales={physicalSales} loading={loadingOrders} />
-        <DashboardProfitCard netProfit={netProfit} loading={loadingOrders} />
+        {/* Pass state setters to MonthCard so it can update the Dashboard when dropdown changes */}
+        <DashboardMonthCard 
+          orders={orders} 
+          physicalSales={physicalSales} 
+          loading={loadingOrders} 
+          onMonthChange={setViewingMonth}
+          onYearChange={setViewingYear}
+        />
+        
+        <DashboardProfitCard 
+          netProfit={netProfit} 
+          loading={loadingOrders} 
+          totalSalesCount={monthlySalesCount} 
+        />
       </div>
 
-      {/* Navigation */}
       <div className="sticky top-0 z-30 bg-[var(--background)] py-2 -mx-4 px-4 sm:mx-0 sm:px-0">
         <DashboardTabs
           activeTab={activeTab}
@@ -135,7 +161,6 @@ export default function AdminDashboardClient() {
         />
       </div>
 
-      {/* Content */}
       <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
         <div className="min-h-[400px] w-full">
           {activeTab === "Products" && (
@@ -147,7 +172,6 @@ export default function AdminDashboardClient() {
           {activeTab === "In Transit" && (
             <InTransitTab products={products} fetching={fetching} onRefresh={fetchAll} />
           )}
-          {/* Renders the new Promotions Tab */}
           {activeTab === "Promotions" && (
             <PromosTab products={products} onStatusChange={setStatus} />
           )}

@@ -1,38 +1,51 @@
 /**
- * Calculate net profit/loss across online orders and physical (walk-in) sales.
- * Matches cost prices by product ID (online) or product name (walk-in).
+ * Calculate net profit/loss for a SPECIFIC month and year.
+ * Defaults to current month if targets are not provided.
  */
-export function calcProfit(orders = [], physicalSales = [], products = []) {
-  const costByName = {};
-  const costById = {};
+export function calcProfit(orders = [], physicalSales = [], products = [], targetMonth = null, targetYear = null) {
+  const now = new Date();
+  const month = targetMonth !== null ? targetMonth : now.getMonth();
+  const year = targetYear !== null ? targetYear : now.getFullYear();
 
+  // 1. Map costs for quick lookup
+  const costMap = {};
   products.forEach((p) => {
     if (p.costPrice) {
-      costById[p.id] = p.costPrice;
-      costByName[p.name.toLowerCase()] = p.costPrice;
+      costMap[p.id] = p.costPrice;
+      costMap[p.name.toLowerCase()] = p.costPrice;
     }
   });
 
-  let totalRevenue = 0;
-  let totalCost = 0;
+  let filteredRevenue = 0;
+  let filteredCost = 0;
 
+  // 2. Process Online Orders for the SELECTED month
   orders.forEach((order) => {
-    (order.items || []).forEach((item) => {
-      const qty = item.quantity || 1;
-      totalRevenue += (item.price || 0) * qty;
-      const cost = costById[item.productId] ?? item.costPrice ?? null;
-      if (cost !== null) totalCost += cost * qty;
-    });
+    const d = new Date(order.createdAt);
+    if (d.getMonth() === month && d.getFullYear() === year) {
+      (order.items || []).forEach((item) => {
+        const qty = item.quantity || 1;
+        filteredRevenue += (item.price || 0) * qty;
+
+        const unitCost = costMap[item.productId] || costMap[item.name?.toLowerCase()] || item.costPrice || 0;
+        filteredCost += unitCost * qty;
+      });
+    }
   });
 
+  // 3. Process Physical Sales for the SELECTED month
   physicalSales.forEach((sale) => {
-    totalRevenue += sale.total || 0;
-    (sale.items || []).forEach((item) => {
-      const qty = item.quantity || 1;
-      const cost = costByName[item.name?.toLowerCase()] ?? null;
-      if (cost !== null) totalCost += cost * qty;
-    });
+    const d = new Date(sale.createdAt);
+    if (d.getMonth() === month && d.getFullYear() === year) {
+      filteredRevenue += sale.total || 0;
+      (sale.items || []).forEach((item) => {
+        const qty = item.quantity || 1;
+        const unitCost = costMap[item.name?.toLowerCase()] || item.costPrice || 0;
+        filteredCost += unitCost * qty;
+      });
+    }
   });
 
-  return totalCost > 0 ? totalRevenue - totalCost : null;
+  // Return the calculated value
+  return filteredRevenue - filteredCost;
 }

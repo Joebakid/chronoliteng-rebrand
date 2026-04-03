@@ -9,16 +9,22 @@ import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
 export default function ProductDetailsView({ product }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Track whichever image the user is currently viewing in the gallery.
+  // This gets passed to AddToCartButton so the cart shows the right variant.
+  const allImages = resolveProductImages(product);
+  const [activeImage, setActiveImage] = useState(
+    allImages[0] || resolveProductImage(product)
+  );
+
   if (!product) return null;
 
-  // Category Checks
   const category = product.category?.toLowerCase() || "";
   const isWatch = category === "watches";
   const isPerfume = category === "perfumes" || category === "perfume";
 
   const standardKeys = [
     "id", "_id", "slug", "inStock", "createdAt", "updatedAt", "__v", "publishedAt",
-    "name", "price", "costPrice", "description", "category", 
+    "name", "price", "costPrice", "description", "category",
     "collection", "images", "inTransit", "transitNote", "colors",
     "caseSize", "movement", "powerSource", "strap", "dialColor", "strapColor",
     "perfumeSize"
@@ -27,19 +33,17 @@ export default function ProductDetailsView({ product }) {
   const customFields = Object.entries(product)
     .filter(([key, value]) => {
       if (standardKeys.includes(key)) return false;
-      return value !== null && value !== undefined && value !== "" && typeof value !== 'object';
+      return value !== null && value !== undefined && value !== "" && typeof value !== "object";
     })
     .map(([key, value]) => ({
-      label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      value: value
+      label: key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      value,
     }));
 
-  // Truncation Logic
   const description = product.description || "";
   const shouldTruncate = description.length > 160;
-  const displayDescription = isExpanded || !shouldTruncate 
-    ? description 
-    : `${description.substring(0, 160)}...`;
+  const displayDescription =
+    isExpanded || !shouldTruncate ? description : `${description.substring(0, 160)}...`;
 
   return (
     <main className="site-frame flex min-h-screen flex-col py-6 sm:py-10">
@@ -48,21 +52,23 @@ export default function ProductDetailsView({ product }) {
       </div>
 
       <div className="grid flex-1 gap-12 lg:grid-cols-2 lg:items-start">
-        
+
         {/* LEFT: GALLERY SECTION */}
         <div className="lg:sticky lg:top-28">
           <div className="aspect-square w-full overflow-hidden rounded-[3rem] p-6 shadow-2xl sm:p-12 border border-[var(--border)] bg-[var(--surface)]">
             <ProductGallery
-              imageUrls={resolveProductImages(product)}
+              imageUrls={allImages}
               fallbackUrl={resolveProductImage(product)}
               className="h-full w-full object-contain"
+              // When the user swipes/clicks to a new image, update our state
+              onImageChange={(url) => setActiveImage(url)}
             />
           </div>
         </div>
 
         {/* RIGHT: CONTENT SECTION */}
         <div className="flex h-full flex-col justify-center space-y-8">
-          
+
           <div className="space-y-4">
             <p className="text-[0.7rem] font-black uppercase tracking-[0.4em] text-[var(--accent)]">
               {product.collection || "Premium Collection"}
@@ -77,7 +83,7 @@ export default function ProductDetailsView({ product }) {
               {displayDescription}
             </p>
             {shouldTruncate && (
-              <button 
+              <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] hover:opacity-70 transition-opacity"
               >
@@ -86,7 +92,7 @@ export default function ProductDetailsView({ product }) {
             )}
           </div>
 
-          {/* --- WATCH SPECS --- */}
+          {/* WATCH SPECS */}
           {isWatch && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Technical Specs</h3>
@@ -101,7 +107,7 @@ export default function ProductDetailsView({ product }) {
             </div>
           )}
 
-          {/* --- PERFUME / CUSTOM SPECS --- */}
+          {/* PERFUME / CUSTOM SPECS */}
           {(!isWatch && (isPerfume || customFields.length > 0 || product.perfumeSize)) && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Product Details</h3>
@@ -116,7 +122,7 @@ export default function ProductDetailsView({ product }) {
             </div>
           )}
 
-          {/* Checkout Layout */}
+          {/* PRICE + ADD TO CART */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-[var(--border)] pt-8">
             <div className="flex flex-col items-start text-left">
               <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-1">Retail Price</p>
@@ -128,8 +134,9 @@ export default function ProductDetailsView({ product }) {
                 }).format(product.price)}
               </p>
             </div>
-            
-            <AddToCartButton product={product} />
+
+            {/* Pass the currently viewed image so cart pre-selects it */}
+            <AddToCartButton product={product} selectedImage={activeImage} />
           </div>
         </div>
       </div>

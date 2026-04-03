@@ -8,6 +8,7 @@ export default function ProductGallery({
   fallbackUrl = "",
   className = "",
   colorIndicators = [],
+  onImageChange, // <--- New Prop
 }) {
   const sources = useMemo(() => {
     if (Array.isArray(imageUrls) && imageUrls.length) return imageUrls;
@@ -22,6 +23,17 @@ export default function ProductGallery({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  /**
+   * SUCCESS LOGIC: 
+   * Whenever 'active' index or 'sources' changes, 
+   * notify the parent component of the current image URL.
+   */
+  useEffect(() => {
+    if (onImageChange && sources[active]) {
+      onImageChange(sources[active]);
+    }
+  }, [active, sources, onImageChange]);
 
   // Lock body scroll when lightbox is open
   useEffect(() => {
@@ -52,7 +64,6 @@ export default function ProductGallery({
       }}
       onClick={() => setLightbox(false)}
     >
-      {/* Close */}
       <button
         onClick={() => setLightbox(false)}
         style={{
@@ -76,7 +87,6 @@ export default function ProductGallery({
         ×
       </button>
 
-      {/* Image */}
       <img
         src={sources[active]}
         alt="Product fullscreen"
@@ -90,7 +100,6 @@ export default function ProductGallery({
         }}
       />
 
-      {/* Prev / Next inside lightbox */}
       {hasMultiple && (
         <>
           <button
@@ -136,7 +145,6 @@ export default function ProductGallery({
         </>
       )}
 
-      {/* Counter */}
       {hasMultiple && (
         <div
           style={{
@@ -165,8 +173,6 @@ export default function ProductGallery({
       {lightboxEl}
 
       <div className={`flex gap-4 h-full w-full ${className}`}>
-
-        {/* Thumbnail strip — left */}
         {hasMultiple && (
           <div className="flex flex-col gap-2 w-[68px] flex-shrink-0 overflow-y-auto no-scrollbar">
             {sources.map((src, i) => (
@@ -186,9 +192,7 @@ export default function ProductGallery({
           </div>
         )}
 
-        {/* Main image */}
         <div className="relative flex-1 flex items-center justify-center min-h-0 min-w-0">
-
           {sources.map((src, i) => (
             <div
               key={i}
@@ -207,7 +211,6 @@ export default function ProductGallery({
             </div>
           ))}
 
-          {/* Color indicators */}
           {Array.isArray(colorIndicators) && colorIndicators.length > 0 && (
             <div className="absolute right-3 top-3 flex gap-1.5 z-10">
               {colorIndicators.map((color, i) => (
@@ -220,12 +223,10 @@ export default function ProductGallery({
             </div>
           )}
 
-          {/* Zoom hint */}
           <div className="absolute top-3 left-3 bg-black/30 text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full backdrop-blur-sm pointer-events-none z-10">
             Tap to zoom
           </div>
 
-          {/* Prev / Next */}
           {hasMultiple && (
             <>
               <button type="button" onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-lg hover:bg-[var(--foreground)] hover:text-[var(--background)] transition-colors shadow">
@@ -237,7 +238,6 @@ export default function ProductGallery({
             </>
           )}
 
-          {/* Dots + counter */}
           {hasMultiple && (
             <div className="absolute bottom-3 left-0 right-0 flex flex-col items-center gap-1.5 pointer-events-none z-10">
               <div className="flex gap-1.5">

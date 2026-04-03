@@ -11,8 +11,10 @@ const fmt = (n) =>
   }).format(n);
 
 export default function DashboardProfitCard({ netProfit, loading, totalSalesCount = 0 }) {
-  // If there are literally 0 sales, profit MUST be 0 regardless of what the DB says
-  // This prevents "Ghost Profit" from all-time data appearing in a monthly view
+  /**
+   * 1. Check for "No Activity" state
+   * 2. Ensure we don't show ghost data if sales count is zero
+   */
   const displayValue = totalSalesCount === 0 ? 0 : (netProfit ?? 0);
   
   const isProfit = displayValue > 0;
@@ -67,9 +69,11 @@ export default function DashboardProfitCard({ netProfit, loading, totalSalesCoun
           </p>
         )}
         
-        {!loading && isZero && (
-          <p className="text-[10px] text-[var(--muted)] font-medium">
-            No sales recorded for this period
+        {!loading && (
+          <p className="text-[10px] font-medium text-[var(--muted)] opacity-80">
+            {isZero 
+              ? "No sales recorded for this period" 
+              : "Based on current month performance"}
           </p>
         )}
       </div>

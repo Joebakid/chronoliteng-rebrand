@@ -45,23 +45,37 @@ export default function DashboardMonthCard({
   orders = [],
   physicalSales = [],
   loading = false,
+  // These props are called whenever the user changes the dropdown
+  // so AdminDashboardClient can keep its profit card in sync
+  onMonthChange,
+  onYearChange,
 }) {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
-  // Auto-advance when the calendar month flips
+  // On mount, immediately tell the parent what month we're showing
+  // so the profit card is correct from the very first render
+  useEffect(() => {
+    onMonthChange?.(now.getMonth());
+    onYearChange?.(now.getFullYear());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-advance when the calendar month flips (e.g. tab left open overnight)
   useEffect(() => {
     const checkMonth = () => {
       const n = new Date();
       if (n.getMonth() !== selectedMonth || n.getFullYear() !== selectedYear) {
         setSelectedMonth(n.getMonth());
         setSelectedYear(n.getFullYear());
+        onMonthChange?.(n.getMonth());
+        onYearChange?.(n.getFullYear());
       }
     };
     const interval = setInterval(checkMonth, 1000 * 60 * 60);
     return () => clearInterval(interval);
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, onMonthChange, onYearChange]);
 
   const monthOptions = buildMonthOptions();
   const selected = getMonthStats(orders, physicalSales, selectedYear, selectedMonth);
@@ -85,6 +99,9 @@ export default function DashboardMonthCard({
     const [y, m] = e.target.value.split("-").map(Number);
     setSelectedYear(y);
     setSelectedMonth(m);
+    // Keep parent in sync so the profit card updates immediately
+    onMonthChange?.(m);
+    onYearChange?.(y);
   };
 
   return (
