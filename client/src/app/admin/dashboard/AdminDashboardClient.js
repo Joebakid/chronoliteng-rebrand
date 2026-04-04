@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense, useCallback, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { getProducts, getAdminAnalytics, getUsers, getAdminOrders, getPhysicalSales } from "@/lib/api";
 import { calcProfit } from "./dashboardUtils";
@@ -33,7 +33,7 @@ export default function AdminDashboardClient() {
   const [fetching, setFetching] = useState(true);
   const [status, setStatus] = useState({ type: "", message: "" });
 
-  // NEW: State to track which month the user is viewing in the dropdown
+  // State to track which month the user is viewing
   const [viewingMonth, setViewingMonth] = useState(new Date().getMonth());
   const [viewingYear, setViewingYear] = useState(new Date().getFullYear());
 
@@ -42,8 +42,6 @@ export default function AdminDashboardClient() {
     totalOrders: 0,
     totalRevenue: 0,
     totalItemsSold: 0,
-    averagePrice: 0,
-    highestPrice: 0,
   });
 
   const fetchAll = async () => {
@@ -94,32 +92,50 @@ export default function AdminDashboardClient() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
-  // UPDATED: Calculate profit using the dynamic viewing month/year
+  /**
+   * CALCULATE STATS FOR SELECTED MONTH ONLY
+   * This ensures the top cards show 0 if April is selected and there are no sales.
+   */
+  const selectedMonthStats = useMemo(() => {
+    const inMonth = (o) => {
+      const d = new Date(o.createdAt);
+      return d.getFullYear() === viewingYear && d.getMonth() === viewingMonth;
+    };
+
+    const monthlyOnline = orders.filter(inMonth);
+    const monthlyPhysical = physicalSales.filter(inMonth);
+
+    const revenue = 
+      monthlyOnline.reduce((s, o) => s + (o.total || 0), 0) + 
+      monthlyPhysical.reduce((s, o) => s + (o.total || 0), 0);
+
+    const itemsSold = 
+      monthlyOnline.reduce((s, o) => s + (o.items?.length || 0), 0) + 
+      monthlyPhysical.reduce((s, o) => s + (o.items?.length || 0), 0);
+
+    return {
+      revenue,
+      count: monthlyOnline.length + monthlyPhysical.length,
+      physicalCount: monthlyPhysical.length,
+      itemsSold
+    };
+  }, [orders, physicalSales, viewingMonth, viewingYear]);
+
+  // Calculate profit using the dynamic viewing month/year
   const netProfit = calcProfit(orders, physicalSales, products, viewingMonth, viewingYear);
   
-  // UPDATED: Calculate filtered sales count to toggle the "No Activity" badge correctly
-  const monthlySalesCount = [
-    ...orders.filter(o => {
-      const d = new Date(o.createdAt);
-      return d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
-    }),
-    ...physicalSales.filter(s => {
+  const inTransitCount = products.filter((p) => p.inTransit).length;
+  const walkInCount = physicalSales.filter(s => {
       const d = new Date(s.createdAt);
       return d.getMonth() === viewingMonth && d.getFullYear() === viewingYear;
-    })
-  ].length;
-
-  const inTransitCount = products.filter((p) => p.inTransit).length;
-  const walkInCount = physicalSales.length;
+  }).length;
 
   return (
     <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 pb-20 overflow-x-hidden">
 
       {status.message && (
         <div className={`rounded-2xl px-4 py-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
-          status.type === "error"
-            ? "bg-red-50 text-red-700 border border-red-200"
-            : "bg-green-50 text-green-700 border border-green-200"
+          status.type === "error" ? "bg-red-50 text-red-700 border border-red-200" : "bg-green-50 text-green-700 border border-green-200"
         }`}>
           <div className="flex items-center justify-between">
             <span>{status.message}</span>
@@ -128,15 +144,14 @@ export default function AdminDashboardClient() {
         </div>
       )}
 
+      {/* TOP CARDS: Now using selectedMonthStats to show 0 for current month if no activity */}
       <DashboardStats
-        analytics={analytics}
         products={products}
-        physicalSales={physicalSales}
-        fetching={fetching}
+        fetching={fetching || loadingOrders}
+        selectedMonthStats={selectedMonthStats}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Pass state setters to MonthCard so it can update the Dashboard when dropdown changes */}
         <DashboardMonthCard 
           orders={orders} 
           physicalSales={physicalSales} 
@@ -148,7 +163,7 @@ export default function AdminDashboardClient() {
         <DashboardProfitCard 
           netProfit={netProfit} 
           loading={loadingOrders} 
-          totalSalesCount={monthlySalesCount} 
+          totalSalesCount={selectedMonthStats.count} 
         />
       </div>
 

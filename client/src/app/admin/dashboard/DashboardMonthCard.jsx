@@ -19,8 +19,10 @@ function getMonthStats(orders = [], physicalSales = [], year, month) {
     const d = new Date(o.createdAt);
     return d.getFullYear() === year && d.getMonth() === month;
   };
+  
   const online = orders.filter(inMonth);
   const physical = physicalSales.filter(inMonth);
+  
   return {
     count: online.length + physical.length,
     revenue:
@@ -28,6 +30,10 @@ function getMonthStats(orders = [], physicalSales = [], year, month) {
       physical.reduce((s, o) => s + (o.total || 0), 0),
     onlineCount: online.length,
     physicalCount: physical.length,
+    // Add items sold calculation for synchronization
+    itemsSold: 
+      online.reduce((s, o) => s + (o.items?.length || 0), 0) + 
+      physical.reduce((s, o) => s + (o.items?.length || 0), 0)
   };
 }
 
@@ -45,8 +51,6 @@ export default function DashboardMonthCard({
   orders = [],
   physicalSales = [],
   loading = false,
-  // These props are called whenever the user changes the dropdown
-  // so AdminDashboardClient can keep its profit card in sync
   onMonthChange,
   onYearChange,
 }) {
@@ -54,15 +58,11 @@ export default function DashboardMonthCard({
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
-  // On mount, immediately tell the parent what month we're showing
-  // so the profit card is correct from the very first render
   useEffect(() => {
     onMonthChange?.(now.getMonth());
     onYearChange?.(now.getFullYear());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-advance when the calendar month flips (e.g. tab left open overnight)
   useEffect(() => {
     const checkMonth = () => {
       const n = new Date();
@@ -99,18 +99,15 @@ export default function DashboardMonthCard({
     const [y, m] = e.target.value.split("-").map(Number);
     setSelectedYear(y);
     setSelectedMonth(m);
-    // Keep parent in sync so the profit card updates immediately
     onMonthChange?.(m);
     onYearChange?.(y);
   };
 
   return (
     <div className="rounded-[1.5rem] sm:rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] p-4 sm:p-5 shadow-sm space-y-3">
-
-      {/* Header with month dropdown */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-[var(--muted)] shrink-0">
-          Sales
+          Sales Performance
         </p>
         <select
           value={`${selectedYear}-${selectedMonth}`}
@@ -149,28 +146,20 @@ export default function DashboardMonthCard({
             </div>
           </div>
 
-          {/* vs previous month */}
           <div className="flex flex-wrap gap-2">
             {revenueChange !== null && (
               <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border ${
-                revenueUp
-                  ? "bg-emerald-500/8 border-emerald-500/20 text-emerald-600"
-                  : "bg-red-500/8 border-red-500/20 text-red-500"
+                revenueUp ? "bg-emerald-500/8 border-emerald-500/20 text-emerald-600" : "bg-red-500/8 border-red-500/20 text-red-500"
               }`}>
                 {revenueUp ? "▲" : "▼"} {revenueUp ? "+" : ""}{revenueChange}% vs {MONTH_NAMES[prevDate.getMonth()]}
               </span>
             )}
             {ordersChange !== null && (
               <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider border ${
-                ordersUp
-                  ? "bg-emerald-500/8 border-emerald-500/20 text-emerald-600"
-                  : "bg-red-500/8 border-red-500/20 text-red-500"
+                ordersUp ? "bg-emerald-500/8 border-emerald-500/20 text-emerald-600" : "bg-red-500/8 border-red-500/20 text-red-500"
               }`}>
                 {ordersUp ? "▲" : "▼"} {ordersUp ? "+" : ""}{ordersChange}% orders
               </span>
-            )}
-            {revenueChange === null && ordersChange === null && (
-              <span className="text-[10px] text-[var(--muted)]">No prior month data to compare</span>
             )}
           </div>
         </>

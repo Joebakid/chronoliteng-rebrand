@@ -12,27 +12,26 @@ export default function DashboardStats({
   products = [],
   physicalSales = [],
   fetching = true,
+  // We add these new props to receive the filtered month data
+  selectedMonthStats = null 
 }) {
-  const totalRevenue = analytics?.totalRevenue ?? 0;
-  const totalOrders = analytics?.totalOrders ?? 0;
-  const totalProducts = analytics?.totalProducts ?? 0;
-  const totalItemsSold = analytics?.totalItemsSold ?? 0;
-
-  const walkInCount = physicalSales.length;
-  const physicalRevenue = physicalSales.reduce((s, o) => s + (o.total || 0), 0);
-  const totalCombinedRevenue = totalRevenue + physicalRevenue;
-  const totalCombinedOrders = totalOrders + walkInCount;
+  // If we have selectedMonthStats (from the MonthCard), use those. 
+  // Otherwise, fallback to 0 instead of lifetime totals.
+  const revenue = selectedMonthStats ? selectedMonthStats.revenue : 0;
+  const orders = selectedMonthStats ? selectedMonthStats.count : 0;
+  const itemsSold = selectedMonthStats ? selectedMonthStats.itemsSold : 0;
+  const walkInCount = selectedMonthStats ? selectedMonthStats.physicalCount : 0;
 
   const stats = [
     {
       label: "Products",
-      value: fetching ? null : totalProducts || products.length,
+      value: fetching ? null : products.length,
     },
     {
       label: "Orders",
       value: fetching ? null : (
         <span className="flex items-baseline gap-1.5 flex-wrap">
-          {totalCombinedOrders}
+          {orders}
           {walkInCount > 0 && (
             <span className="text-[10px] font-bold text-violet-500 normal-case tracking-normal">
               ({walkInCount} walk-in)
@@ -43,11 +42,11 @@ export default function DashboardStats({
     },
     {
       label: "Revenue",
-      value: fetching ? null : fmt(totalCombinedRevenue),
+      value: fetching ? null : fmt(revenue),
     },
     {
       label: "Items Sold",
-      value: fetching ? null : totalItemsSold,
+      value: fetching ? null : itemsSold,
     },
   ];
 
@@ -64,7 +63,7 @@ export default function DashboardStats({
           {value === null ? (
             <div className="mt-2 h-7 w-16 rounded-lg bg-[var(--border)] animate-pulse" />
           ) : (
-            <p className="mt-2 text-xl sm:text-2xl font-semibold">{value}</p>
+            <p className="mt-2 text-xl sm:text-2xl font-semibold tabular-nums">{value}</p>
           )}
         </div>
       ))}
