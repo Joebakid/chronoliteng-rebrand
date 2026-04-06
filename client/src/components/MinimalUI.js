@@ -70,7 +70,7 @@ export default function MinimalUI({
               </Suspense>
             </div>
 
-            <p className="text-[0.65rem] font-black uppercase tracking-[0.15em] text-[var(--muted)] shrink-0 bg-[var(--surface)] px-4 py-2 rounded-full border border-[var(--border)] shadow-sm">
+            <p className="text-[0.65rem] text-amber-200 uppercase tracking-[0.15em] text-[var(--muted)] shrink-0 bg-[var(--surface)] px-4 py-2 rounded-full   shadow-sm">
               {totalFiltered} {selectedCategory} {totalFiltered === 1 ? "item" : "items"}
             </p>
           </div>

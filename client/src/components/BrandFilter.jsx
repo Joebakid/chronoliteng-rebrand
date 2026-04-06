@@ -1,26 +1,40 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 export default function BrandFilter({ brands = [] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // FIX: Force the dropdown to respect the actual URL state and standardized casing
-  const currentBrand = searchParams.get("brand")?.toUpperCase() || "";
+  // Store brand in URL as-is, compare case-insensitively
+  const currentBrand = searchParams.get("brand") || "";
+
+  // Find the matching brand from the list (case-insensitive)
+  const normalizedCurrent = brands.find(
+    (b) => b.toLowerCase() === currentBrand.toLowerCase()
+  ) || "";
+
+  // Clear invalid brand param from URL
+  useEffect(() => {
+    if (currentBrand && !normalizedCurrent) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("brand");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [currentBrand, normalizedCurrent, router, pathname, searchParams]);
 
   const handleChange = (e) => {
-    const value = e.target.value.toUpperCase(); // Force uppercase selection
+    const value = e.target.value;
     const params = new URLSearchParams(searchParams.toString());
-    
+
     if (value) {
       params.set("brand", value);
     } else {
       params.delete("brand");
     }
-    
-    // Reset to first page when changing brand
+
     params.delete("page");
     router.push(`${pathname}?${params.toString()}`);
   };
@@ -28,7 +42,7 @@ export default function BrandFilter({ brands = [] }) {
   return (
     <div className="relative inline-flex items-center">
       <select
-        value={currentBrand}
+        value={normalizedCurrent}
         onChange={handleChange}
         className="h-9 appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] pl-4 pr-10 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-[var(--accent)] cursor-pointer transition-colors hover:bg-[var(--surface)]"
       >
