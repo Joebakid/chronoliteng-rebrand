@@ -2,25 +2,27 @@
 
 Chronolite NG is a full-stack watch storefront built with:
 
-- `Next.js` frontend in [`client/`](/home/joseph-bawo/Desktop/chronoliteng/client)
-- `Express` + `MongoDB` backend in [`server/`](/home/joseph-bawo/Desktop/chronoliteng/server)
+- `Next.js` frontend in `client/`
+- `Firebase` backend (Firestore, Auth, Storage, Cloud Functions) in `function/`
 
 It includes:
 
 - customer storefront and product detail pages
 - cart flow
-- account creation and sign-in
+- account creation and sign-in (Firebase Auth)
 - admin authentication
-- admin product upload, edit, and delete
-- order creation on checkout
+- admin product upload, edit, and delete (Cloudinary)
+- order creation on checkout (Paystack)
 - admin order details and analytics
 
 ## Project Structure
 
 ```text
 chronoliteng/
-├── client/   # Next.js frontend
-├── server/   # Express API, MongoDB models, admin seed script
+├── client/       # Next.js frontend
+├── function/     # Firebase Cloud Functions
+│   ├── functions/  # Cloud Functions code
+│   └── src/        # Firebase triggers and lib
 ├── package.json
 └── README.md
 ```
@@ -29,27 +31,11 @@ chronoliteng/
 
 - Node.js 20+
 - npm
-- MongoDB
-  - local MongoDB, or
-  - MongoDB Atlas
+- Firebase account (Firebase Console)
+- Cloudinary account (for image uploads)
+- Paystack account (for payments)
 
-## Environment Setup
-
-Create a backend env file from the example:
-
-```bash
-cp server/.env.example server/.env
-```
-
-Required variables:
-
-```env
-PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/chronoliteng
-JWT_SECRET=replace-with-a-long-random-secret
-```
-
-If you use MongoDB Atlas, replace `MONGO_URI` with your cluster connection string.
+ 
 
 ## Install Dependencies
 
@@ -58,49 +44,43 @@ From the project root:
 ```bash
 npm install
 npm install --prefix client
-npm install --prefix server
+npm install --prefix function/functions
 ```
 
 ## Run The App
 
-Run frontend and backend together:
+Run the Next.js frontend:
 
 ```bash
+cd client
 npm run dev
 ```
 
-Or run them separately:
+Default local URL: `http://localhost:3000`
+
+To run Firebase Cloud Functions locally:
 
 ```bash
-npm run dev:client
-npm run dev:server
+cd function
+firebase emulators:start
 ```
-
-Default local URLs:
-
-- frontend: `http://localhost:3000`
-- backend: `http://localhost:5000`
 
 ## Build
 
 Frontend production build:
 
 ```bash
+cd client
 npm run build
 ```
 
-## Seed The First Admin
+## Firebase Deployment
 
-Create or update the first admin user:
+Deploy to Firebase Hosting:
 
 ```bash
-npm run seed:admin -- admin@chronolite.com admin12345 "Chronolite Admin"
+firebase deploy
 ```
-
-Default admin credentials after seeding:
-
-- email: `admin@chronolite.com`
-- password: `admin12345`
 
 ## Admin Flow
 
@@ -116,30 +96,21 @@ Default admin credentials after seeding:
 ## Order Flow
 
 - signed-in users can check out from the cart
-- checkout creates a real backend order
+- checkout creates a real backend order via Paystack
 - admin dashboard shows recent orders and revenue stats
 
 ## Uploaded Assets
 
-Product images are uploaded to:
-
-```text
-server/uploads/
-```
-
-These files are ignored by git through [`.gitignore`](/home/joseph-bawo/Desktop/chronoliteng/.gitignore).
+Product images are uploaded to Cloudinary.
 
 ## Git Notes
 
-Sensitive local files are excluded in [`.gitignore`](/home/joseph-bawo/Desktop/chronoliteng/.gitignore), including:
+Sensitive local files are excluded in `.gitignore`, including:
 
 - env files
-- uploaded assets
-- local database dumps
 - private key/certificate files
 
 ## Known Notes
 
 - if you change `client/next.config.js`, restart the frontend dev server
-- if you add backend models/routes/controllers, restart the backend dev server
-
+- if you modify Firebase Cloud Functions, redeploy with `firebase deploy --only functions`
