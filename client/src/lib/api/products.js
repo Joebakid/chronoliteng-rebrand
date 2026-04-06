@@ -8,24 +8,43 @@ import {
   deleteDoc,
   query,
   orderBy,
-  serverTimestamp,
   where,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db, formatFirebaseDoc } from "./firebase";
 
+// Main admin email - sees all products
+const MAIN_ADMIN_EMAIL = "josephbawo@gmail.com";
+
 /* ─────────────────────────────────────────────────────────────
-    PRODUCTS
-───────────────────────────────────────────────────────────── */
+   PRODUCTS
+   ───────────────────────────────────────────────────────────── */
 
 /**
- * ADMIN: Returns ALL products including in-transit ones.
- * Use only inside /admin pages.
+ * ADMIN: Returns products based on admin role.
+ * - Main admin (josephbawo@gmail.com) sees ALL products
+ * - Other admins see only products they created
+ * - Legacy products (no createdBy) belong to main admin
  */
-export async function getProducts() {
+export async function getProducts(adminId = null, adminEmail = null) {
   const snap = await getDocs(
     query(collection(db, "products"), orderBy("createdAt", "desc"))
   );
-  return snap.docs.map(formatFirebaseDoc);
+
+  const products = snap.docs.map(formatFirebaseDoc);
+
+  // Main admin sees everything
+  if (adminEmail === MAIN_ADMIN_EMAIL) {
+    return products;
+  }
+
+  // Other admins see only their own products
+  if (adminId) {
+    return products.filter((p) => p.createdBy === adminId);
+  }
+
+  // No admin context - return all
+  return products;
 }
 
 /**
@@ -70,7 +89,7 @@ export async function getProduct(identifier) {
   throw new Error("Product not found");
 }
 
-export async function createProduct(data) {
+export async function createProduct(data, createdBy) {
   const baseSlug = data.name
     .toLowerCase()
     .trim()
@@ -85,6 +104,7 @@ export async function createProduct(data) {
     slug,
     inStock: true,
     createdAt: serverTimestamp(),
+    createdBy: createdBy || null,
   });
 
   await fetch("/api/revalidate", { method: "POST" }).catch(() => {});

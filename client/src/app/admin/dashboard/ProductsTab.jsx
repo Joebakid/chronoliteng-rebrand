@@ -4,7 +4,7 @@ import { useState } from "react";
 import ProductForm from "./ProductForm";
 import ProductInventory from "./ProductInventory";
 
-export default function ProductsTab({ products, fetching, onRefresh, onStatusChange }) {
+export default function ProductsTab({ products, fetching, onRefresh, onStatusChange, user }) {
   const [editingProduct, setEditingProduct] = useState(null);
 
   const handleSuccess = () => {
@@ -30,6 +30,7 @@ export default function ProductsTab({ products, fetching, onRefresh, onStatusCha
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           onStatusChange={onStatusChange}
+          user={user}
         />
       </div>
 

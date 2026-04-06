@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -101,6 +102,18 @@ export default function AccountInfo({ user, purchases, requests, loadingPurchase
             <p className="mt-1.5 text-sm text-[var(--foreground)]">{loadingRequests ? "—" : requests.length}</p>
           </div>
         </div>
+
+        {/* Starred Link */}
+        <Link
+          href="/account/starred"
+          className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 hover:border-amber-300 transition-colors group"
+        >
+          <div>
+            <p className={labelCls}>Starred</p>
+            <p className="mt-1 text-sm text-[var(--foreground)]">Your saved items</p>
+          </div>
+          <span className="text-xl text-amber-500 group-hover:scale-110 transition-transform">★</span>
+        </Link>
       </div>
 
       {/* Delivery Details */}
@@ -180,7 +193,7 @@ export default function AccountInfo({ user, purchases, requests, loadingPurchase
           <div className="rounded-2xl border border-dashed border-[var(--border)] py-6 text-center">
             <p className="text-xs text-[var(--muted)]">No delivery details yet.</p>
             <p className="text-[11px] text-[var(--muted)] opacity-60 mt-1">
-              Add your address to speed up checkout..
+              Add your address to speed up checkout.
             </p>
           </div>
         )}

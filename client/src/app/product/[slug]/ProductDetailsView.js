@@ -4,6 +4,7 @@ import { useState } from "react";
 import AddToCartButton from "@/components/AddToCartButton";
 import BackHomeButton from "@/components/BackHomeButton";
 import ProductGallery from "@/components/ProductGallery";
+import StarButton from "@/components/StarButton";
 import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
 
 export default function ProductDetailsView({ product }) {
@@ -135,8 +136,11 @@ export default function ProductDetailsView({ product }) {
               </p>
             </div>
 
-            {/* Pass the currently viewed image so cart pre-selects it */}
-            <AddToCartButton product={product} selectedImage={activeImage} />
+            <div className="flex items-center gap-3">
+              {/* Pass the currently viewed image so cart pre-selects it */}
+              <AddToCartButton product={product} selectedImage={activeImage} />
+              <StarButton product={product} size="large" />
+            </div>
           </div>
         </div>
       </div>

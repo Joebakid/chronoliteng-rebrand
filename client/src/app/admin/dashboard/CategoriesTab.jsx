@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { getCategories, createCategory, deleteCategory } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
 
-export default function CategoriesTab() {
+// Main admin email - sees everything
+const MAIN_ADMIN_EMAIL = "josephbawo@gmail.com";
+
+export default function CategoriesTab({ user }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -15,7 +18,7 @@ export default function CategoriesTab() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const data = await getCategories();
+      const data = await getCategories(user?.id, user?.email);
       setCategories(data);
     } catch (err) {
       console.error("[CategoriesTab] fetch error:", err);
@@ -24,7 +27,7 @@ export default function CategoriesTab() {
     }
   };
 
-  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => { fetchCategories(); }, [user?.id, user?.email]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -42,7 +45,7 @@ export default function CategoriesTab() {
     setAdding(true);
     setError("");
     try {
-      await createCategory(newName.trim());
+      await createCategory(newName.trim(), user?.id);
       setNewName("");
       await fetchCategories();
     } catch (err) {

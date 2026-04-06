@@ -40,11 +40,11 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
       selectedCategory === "All"
         ? products
         : products.filter((p) => p.category === selectedCategory);
-    
+
     const normalizedList = source
       .map((p) => normalizeBrand(p.collection))
       .filter(Boolean);
-      
+
     return ["All", ...Array.from(new Set(normalizedList)).sort()];
   }, [products, selectedCategory]);
 
@@ -55,15 +55,15 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
     setPage(1);
   };
 
-  // Filter logic
+  // Filter logic — sorted by newest first
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return products.filter((p) => {
+    const filtered = products.filter((p) => {
       if (p.inTransit) return false;
-      
+
       // Category Filter
       if (selectedCategory !== "All" && p.category !== selectedCategory) return false;
-      
+
       // Case-Insensitive Brand Filter
       if (selectedBrand !== "All") {
         if (normalizeBrand(p.collection) !== selectedBrand) return false;
@@ -76,6 +76,13 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
       }
       return true;
     });
+
+    // Sort by createdAt descending (newest first)
+    return filtered.sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt) || new Date(0);
+      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt) || new Date(0);
+      return dateB - dateA;
+    });
   }, [products, selectedCategory, selectedBrand, search]);
 
   // Pagination
@@ -85,7 +92,7 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
     (safePage - 1) * ITEMS_PER_PAGE,
     safePage * ITEMS_PER_PAGE
   );
-  
+
   const goTo = (p) => setPage(Math.min(Math.max(1, p), totalPages));
 
   const toggleProfit = (id) =>

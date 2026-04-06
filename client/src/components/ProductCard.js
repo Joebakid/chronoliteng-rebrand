@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
 import { resolveProductImage } from "@/lib/productImage";
+import { isProductStarred, toggleStar } from "@/lib/api/stars";
 import ImageWithLoader from "@/components/ImageWithLoader";
 
 const fmt = (n) =>
@@ -19,11 +21,23 @@ export default function ProductCard({
   selectedCategory = null,
   searchQuery = "",
 }) {
-  const { addToCart } = useAppContext();
+  const { user, addToCart } = useAppContext();
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const [isStarred, setIsStarred] = useState(false);
   const intervalRef = useRef(null);
+
+  // Check if product is starred
+  useEffect(() => {
+    if (user?.id && product?.id) {
+      isProductStarred(user.id, product.id).then(setIsStarred);
+    }
+  }, [user?.id, product?.id]);
+
+  // Don't show star button if user is not logged in
+  const showStarButton = !!user?.id;
 
   if (!product) return null;
 
@@ -57,6 +71,23 @@ export default function ProductCard({
     setAdding(true);
     await addToCart(product);
     setTimeout(() => setAdding(false), 800);
+  }
+
+  async function handleStar(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user?.id) {
+      router.push("/account?login=true");
+      return;
+    }
+
+    try {
+      const result = await toggleStar(user.id, product);
+      setIsStarred(result.starred);
+    } catch (err) {
+      console.error("Failed to toggle star:", err);
+    }
   }
 
   const productPath = product.id || product._id || product.slug;
@@ -97,6 +128,20 @@ export default function ProductCard({
           <span className="absolute left-3 top-3 z-20 rounded-full border border-[var(--border)] bg-[var(--nav)] px-3 py-1 text-[0.55rem] font-bold uppercase tracking-widest backdrop-blur-md">
             {product.collection || "CHRONO"}
           </span>
+
+          {/* Star button */}
+          {showStarButton && (
+            <button
+              onClick={handleStar}
+              className={`absolute right-3 bottom-3 z-20 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all ${
+                isStarred
+                  ? "bg-amber-500 text-white"
+                  : "bg-white/80 text-[var(--muted)] hover:bg-amber-50 hover:text-amber-500"
+              }`}
+            >
+              {isStarred ? "★" : "☆"}
+            </button>
+          )}
 
           {/* Image count dots — only when multiple */}
           {hasMultiple && (

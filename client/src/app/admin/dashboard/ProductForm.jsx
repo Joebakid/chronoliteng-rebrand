@@ -10,16 +10,19 @@ import InTransitSection from "./InTransitSection";
 import ImageUploader from "./ImageUploader";
 
 const emptyForm = {
-  name: "", price: "", costPrice: "", description: "", category: "Watches",
+  name: "", price: "", costPrice: "", description: "", category: "",
   collection: "", images: [], inTransit: false, transitNote: "",
   caseSize: "40mm", movement: "Quartz", powerSource: "Battery",
   material: "Silicone", dialColor: "", strapColor: "All", perfumeSize: "",
 };
 
-export default function ProductForm({ editingProduct, onSuccess, onCancel, onStatusChange }) {
+// Main admin email - sees everything
+const MAIN_ADMIN_EMAIL = "josephbawo@gmail.com";
+
+export default function ProductForm({ editingProduct, onSuccess, onCancel, onStatusChange, user }) {
   const [form, setForm] = useState(emptyForm);
   const [customFields, setCustomFields] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]); 
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState(["Watches", "Perfumes"]);
@@ -29,14 +32,24 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const blobUrlsRef = useRef([]);
 
   const isEditing = Boolean(editingProduct);
-  const isWatchCategory = form.category?.toLowerCase() === "watches";
-  const isPerfumeCategory = form.category?.toLowerCase() === "perfumes" || form.category?.toLowerCase() === "perfume";
+  const categoryLower = (form.category || "").toLowerCase();
+  const isWatchCategory = categoryLower === "watches";
+  const isPerfumeCategory = categoryLower === "perfumes" || categoryLower === "perfume";
 
   useEffect(() => {
-    getCategories()
-      .then((data) => { if (data.length > 0) setCategories(data.map((c) => c.name)); })
+    getCategories(user?.id, user?.email)
+      .then((data) => {
+        if (data.length > 0) {
+          const cats = data.map((c) => c.name);
+          setCategories(cats);
+          // Set first category as default for new products
+          if (!editingProduct && !form.category) {
+            setForm((prev) => ({ ...prev, category: cats[0] }));
+          }
+        }
+      })
       .catch(() => setCategories(["Watches", "Perfumes"]));
-  }, []);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     if (editingProduct) {
@@ -45,9 +58,9 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       const standardKeys = Object.keys(emptyForm).concat(["id", "createdAt", "updatedAt", "_id", "__v", "slug", "inStock"]);
       const extraFields = Object.keys(editingProduct).filter((key) => !standardKeys.includes(key)).map((key) => ({ label: key, value: String(editingProduct[key]) }));
       setCustomFields(extraFields);
-      setImagePreviews([]); 
+      setImagePreviews([]);
     } else {
-      setForm(emptyForm);
+      setForm((prev) => ({ ...emptyForm, category: categories[0] || "" }));
       setCustomFields([]);
       setExistingImages([]);
       setImagePreviews([]);
@@ -91,7 +104,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       blobUrlsRef.current.push(url); // Save to our master list for final cleanup
       return url;
     });
-    
+
     setForm((prev) => ({ ...prev, images: [...prev.images, ...files] }));
     setImagePreviews((prev) => [...prev, ...newPreviews]);
     e.target.value = "";
@@ -129,8 +142,14 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       }
       const extras = customFields.reduce((acc, field) => { if (field.label) acc[field.label] = field.value; return acc; }, {});
       const payload = { ...form, ...extras, price: Number(form.price), costPrice: form.costPrice ? Number(form.costPrice) : null, images: isEditing ? [...existingImages, ...imageUrls] : imageUrls };
-      if (isEditing) { await updateProduct(editingProduct.id, payload); } else { await createProduct(payload); }
-      
+
+      if (isEditing) {
+        await updateProduct(editingProduct.id, payload);
+      } else {
+        // Pass the admin's user ID when creating a new product
+        await createProduct(payload, user?.id);
+      }
+
       setForm(emptyForm);
       setCustomFields([]);
       setImagePreviews([]);

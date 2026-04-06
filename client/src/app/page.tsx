@@ -22,8 +22,8 @@ export default async function Home({ searchParams }) {
     console.error("Data fetch error:", error);
   }
 
-  // 1. Setup Filters
-  const selectedCategory = params?.category || "Watches";
+  // 1. Setup Filters - default to first category if none selected
+  const selectedCategory = params?.category || allCategories[0] || "Watches";
   const selectedBrand = params?.brand || "";
   const searchQuery = params?.q?.toLowerCase().trim() || "";
   const currentPage = Number(params?.page) || 1;

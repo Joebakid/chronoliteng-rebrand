@@ -10,3 +10,4 @@ export * from "./requests";
 export * from "./analytics";
 export * from "./physicalSales";
 export * from "./categories";
+export * from "./stars";
