@@ -21,14 +21,14 @@ export default function AddToCartButton({ product, selectedImage }) {
       <button
         type="button"
         onClick={handleAddToCart}
-        className="rounded-full bg-[var(--foreground)] px-7 py-3 text-[0.82rem] font-semibold uppercase tracking-[0.14em] text-[var(--surface-strong)]"
+        className="rounded-full bg-[var(--foreground)] py-0.5 px-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--surface-strong)] sm:py-3 sm:px-6 sm:text-sm"
       >
         {added ? "Added to Cart ✓" : "Add to Cart"}
       </button>
       <button
         type="button"
         onClick={() => router.push("/cart")}
-        className="rounded-full border border-[var(--border)] px-7 py-3 text-[0.82rem] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)]"
+        className="rounded-full border border-[var(--border)] py-0.5 px-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] sm:py-3 sm:px-6 sm:text-sm"
       >
         View Cart
       </button>
