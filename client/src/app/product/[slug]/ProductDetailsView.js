@@ -28,7 +28,7 @@ export default function ProductDetailsView({ product }) {
     "name", "price", "costPrice", "description", "category",
     "collection", "images", "inTransit", "transitNote", "colors",
     "caseSize", "movement", "powerSource", "strap", "dialColor", "strapColor",
-    "perfumeSize"
+    "perfumeSize", "createdBy"
   ];
 
   const customFields = Object.entries(product)
