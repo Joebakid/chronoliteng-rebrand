@@ -5,6 +5,7 @@ import { createProduct, updateProduct, getCategories } from "@/lib/api";
 import CoreDetailsSection from "./CoreDetailsSection";
 import WatchSpecsSection from "./WatchSpecsSection";
 import PerfumeSpecsSection from "./PerfumeSpecsSection";
+import GoldSpecsSection from "./GoldSpecsSection";
 import CustomFieldsSection from "./CustomFieldsSection";
 import InTransitSection from "./InTransitSection";
 import ImageUploader from "./ImageUploader";
@@ -14,6 +15,7 @@ const emptyForm = {
   collection: "", images: [], inTransit: false, transitNote: "",
   caseSize: "40mm", movement: "Quartz", powerSource: "Battery",
   material: "Silicone", dialColor: "", strapColor: "All", perfumeSize: "",
+  weight: "",
 };
 
 // Main admin email - sees everything
@@ -35,6 +37,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const categoryLower = (form.category || "").toLowerCase();
   const isWatchCategory = categoryLower === "watches";
   const isPerfumeCategory = categoryLower === "perfumes" || categoryLower === "perfume";
+  const isGoldCategory = categoryLower === "gold" || categoryLower === "gold replica";
 
   useEffect(() => {
     getCategories(user?.id, user?.email)
@@ -55,7 +58,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
     if (editingProduct) {
       setForm({ ...emptyForm, ...editingProduct, price: String(editingProduct.price || ""), costPrice: String(editingProduct.costPrice || ""), images: [] });
       setExistingImages(editingProduct.images || []);
-      const standardKeys = Object.keys(emptyForm).concat(["id", "createdAt", "updatedAt", "_id", "__v", "slug", "inStock"]);
+      const standardKeys = Object.keys(emptyForm).concat(["id", "createdAt", "updatedAt", "_id", "__v", "slug", "inStock", "createdBy"]);
       const extraFields = Object.keys(editingProduct).filter((key) => !standardKeys.includes(key)).map((key) => ({ label: key, value: String(editingProduct[key]) }));
       setCustomFields(extraFields);
       setImagePreviews([]);
@@ -181,6 +184,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         <CoreDetailsSection form={form} setField={setField} categories={categories} />
         {isWatchCategory && <WatchSpecsSection form={form} setField={setField} />}
         {isPerfumeCategory && <PerfumeSpecsSection form={form} setField={setField} />}
+        {isGoldCategory && <GoldSpecsSection form={form} setField={setField} />}
         <CustomFieldsSection customFields={customFields} onAdd={addCustomField} onRemove={removeCustomField} onUpdate={updateCustomField} />
         <InTransitSection form={form} setField={setField} setToggle={setToggle} />
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-xl disabled:opacity-50 transition-all active:scale-95">

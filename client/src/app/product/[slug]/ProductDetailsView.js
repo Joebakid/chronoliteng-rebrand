@@ -22,18 +22,21 @@ export default function ProductDetailsView({ product }) {
   const category = product.category?.toLowerCase() || "";
   const isWatch = category === "watches";
   const isPerfume = category === "perfumes" || category === "perfume";
+  const isGold = category === "gold" || category === "gold replica";
 
   const standardKeys = [
     "id", "_id", "slug", "inStock", "createdAt", "updatedAt", "__v", "publishedAt",
     "name", "price", "costPrice", "description", "category",
     "collection", "images", "inTransit", "transitNote", "colors",
     "caseSize", "movement", "powerSource", "strap", "dialColor", "strapColor",
-    "perfumeSize", "createdBy"
+    "perfumeSize", "createdBy", "weight"
   ];
 
+  // For gold products, filter out "material" field since we show "Gold" by default
   const customFields = Object.entries(product)
     .filter(([key, value]) => {
       if (standardKeys.includes(key)) return false;
+      if (isGold && key.toLowerCase() === "material") return false;
       return value !== null && value !== undefined && value !== "" && typeof value !== "object";
     })
     .map(([key, value]) => ({
@@ -108,8 +111,22 @@ export default function ProductDetailsView({ product }) {
             </div>
           )}
 
+          {/* GOLD SPECS */}
+          {isGold && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
+              <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Product Details</h3>
+              <div className="grid grid-cols-2 gap-y-6 gap-x-6 border-l-2 border-amber-500 pl-6">
+                <SpecItem label="Material" value="Gold" />
+                <SpecItem label="Weight" value={product.weight} />
+                {customFields.map((field, i) => (
+                  <SpecItem key={i} label={field.label} value={field.value} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* PERFUME / CUSTOM SPECS */}
-          {(!isWatch && (isPerfume || customFields.length > 0 || product.perfumeSize)) && (
+          {(!isWatch && !isGold && (isPerfume || customFields.length > 0 || product.perfumeSize)) && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Product Details</h3>
               <div className="grid grid-cols-2 gap-y-6 gap-x-6 border-l-2 border-sky-500 pl-6">
