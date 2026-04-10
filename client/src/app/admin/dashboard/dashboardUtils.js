@@ -40,7 +40,8 @@ export function calcProfit(orders = [], physicalSales = [], products = [], targe
       filteredRevenue += sale.total || 0;
       (sale.items || []).forEach((item) => {
         const qty = item.quantity || 1;
-        const unitCost = costMap[item.name?.toLowerCase()] || item.costPrice || 0;
+        // Try productId first (most reliable), then name lookup, then item's stored costPrice
+        const unitCost = costMap[item.productId] || costMap[item.name?.toLowerCase()] || item.costPrice || 0;
         filteredCost += unitCost * qty;
       });
     }
