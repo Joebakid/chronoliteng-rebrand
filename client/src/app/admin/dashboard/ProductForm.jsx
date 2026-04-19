@@ -14,7 +14,7 @@ const emptyForm = {
   name: "", price: "", costPrice: "", description: "", category: "",
   collection: "", images: [], inTransit: false, transitNote: "",
   caseSize: "40mm", movement: "Quartz", powerSource: "Battery",
-  material: "Silicone", dialColor: "", strapColor: "All", perfumeSize: "",
+  dialColor: "", strapColor: "All", perfumeSize: "",
   weight: "",
 };
 

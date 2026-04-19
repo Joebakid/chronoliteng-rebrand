@@ -28,7 +28,7 @@ export default function WatchSpecsSection({ form, setField }) {
         </div>
         <div className="space-y-1">
           <label className={labelCls}>Material</label>
-          <input value={form.material} onChange={setField("material")} placeholder="e.g. Silicone" className={inputCls} />
+          <input value={form.material || "Silicone"} onChange={setField("material")} placeholder="e.g. Silicone" className={inputCls} />
         </div>
         <div className="space-y-1">
           <label className={labelCls}>Dial Color</label>
