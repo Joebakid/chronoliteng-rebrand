@@ -71,6 +71,7 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
   // Memoized page change handler
   const handlePageChange = useCallback((newPage) => {
     setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   return (

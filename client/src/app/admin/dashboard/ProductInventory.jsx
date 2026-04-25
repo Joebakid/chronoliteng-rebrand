@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { deleteProduct, toggleProductStock, updateProduct } from "@/lib/api";
 import ConfirmModal from "@/components/ConfirmModal";
 
 const ITEMS_PER_PAGE = 6;
+const MAX_VISIBLE_PAGES = 5;
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-NG", {
@@ -57,13 +58,47 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
   }, [products, selectedCategory, selectedBrand, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
-  const paginated = filteredProducts.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const paginated = filteredProducts.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (page !== safePage) {
+      setPage(safePage);
+    }
+  }, [page, safePage]);
 
   const handlePageChange = (newPage) => {
-    setPage(newPage);
-    // Remove if you don't want any scroll behavior
+    setPage(Math.min(Math.max(1, newPage), totalPages));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const getVisiblePages = () => {
+    if (totalPages <= MAX_VISIBLE_PAGES) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const half = Math.floor(MAX_VISIBLE_PAGES / 2);
+    let start = Math.max(1, safePage - half);
+    let end = start + MAX_VISIBLE_PAGES - 1;
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(1, end - MAX_VISIBLE_PAGES + 1);
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
+
+  const visiblePages = getVisiblePages();
+  const showStartEllipsis = visiblePages[0] > 1;
+  const showEndEllipsis = visiblePages[visiblePages.length - 1] < totalPages;
+
+  const pageBtn = (p) => (
+    <button
+      key={p}
+      onClick={() => handlePageChange(p)}
+      className={`flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2 text-[11px] font-black transition border ${p === safePage ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]" : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--muted)]"}`}
+    >
+      {p}
+    </button>
+  );
 
   return (
     <div className="space-y-5">
@@ -82,7 +117,7 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
       </div>
 
       <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search..." className="w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] px-4 py-2.5 text-[11px]" />
-      
+
       <div className="flex gap-2">
         <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }} className="h-9 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 text-[10px] font-bold uppercase">{categories.map(c => <option key={c} value={c}>{c}</option>)}</select>
         <select value={selectedBrand} onChange={(e) => { setSelectedBrand(e.target.value); setPage(1); }} className="h-9 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-strong)] px-3 text-[10px] font-bold uppercase">{brands.map(b => <option key={b} value={b}>{b}</option>)}</select>
@@ -119,14 +154,25 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
       {totalPages > 1 && (
         <div className="flex flex-col items-center gap-4 mt-10 pb-10">
           <div className="flex items-center gap-2">
-            <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-20 transition">‹</button>
+            <button onClick={() => handlePageChange(safePage - 1)} disabled={safePage <= 1} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-20 transition">‹</button>
             <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => handlePageChange(p)} className={`flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2 text-[11px] font-black transition border ${p === page ? "bg-[var(--foreground)] text-[var(--surface-strong)] border-[var(--foreground)]" : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--muted)]"}`}>{p}</button>
-              ))}
+              {showStartEllipsis && (
+                <>
+                  {pageBtn(1)}
+                  <span className="text-[11px] text-[var(--muted)] px-1">…</span>
+                </>
+              )}
+              {visiblePages.map((p) => pageBtn(p))}
+              {showEndEllipsis && (
+                <>
+                  <span className="text-[11px] text-[var(--muted)] px-1">…</span>
+                  {pageBtn(totalPages)}
+                </>
+              )}
             </div>
-            <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-20 transition">›</button>
+            <button onClick={() => handlePageChange(safePage + 1)} disabled={safePage >= totalPages} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-20 transition">›</button>
           </div>
+          <p className="text-[10px] text-[var(--muted)]">{filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} · Page {safePage} of {totalPages}</p>
         </div>
       )}
     </div>
