@@ -10,8 +10,6 @@ import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
 export default function ProductDetailsView({ product }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Track whichever image the user is currently viewing in the gallery.
-  // This gets passed to AddToCartButton so the cart shows the right variant.
   const allImages = resolveProductImages(product);
   const [activeImage, setActiveImage] = useState(
     allImages[0] || resolveProductImage(product)
@@ -29,10 +27,9 @@ export default function ProductDetailsView({ product }) {
     "name", "price", "costPrice", "description", "category",
     "collection", "images", "inTransit", "transitNote", "colors",
     "caseSize", "movement", "powerSource", "strap", "dialColor", "strapColor",
-    "perfumeSize", "createdBy", "weight"
+    "perfumeSize", "createdBy", "weight", "watchContainer", "material",
   ];
 
-  // For gold products, filter out "material" field since we show "Gold" by default
   const customFields = Object.entries(product)
     .filter(([key, value]) => {
       if (standardKeys.includes(key)) return false;
@@ -49,6 +46,11 @@ export default function ProductDetailsView({ product }) {
   const displayDescription =
     isExpanded || !shouldTruncate ? description : `${description.substring(0, 160)}...`;
 
+  // watchContainer alone doesn't count as "having specs"
+  const hasWatchSpecs =
+    product.caseSize || product.movement || product.powerSource ||
+    product.strap || product.dialColor || product.strapColor;
+
   return (
     <main className="site-frame flex min-h-screen flex-col py-6 sm:py-10">
       <div className="mb-6 flex justify-end">
@@ -64,7 +66,6 @@ export default function ProductDetailsView({ product }) {
               imageUrls={allImages}
               fallbackUrl={resolveProductImage(product)}
               className="h-full w-full object-contain"
-              // When the user swipes/clicks to a new image, update our state
               onImageChange={(url) => setActiveImage(url)}
             />
           </div>
@@ -96,8 +97,8 @@ export default function ProductDetailsView({ product }) {
             )}
           </div>
 
-          {/* WATCH SPECS */}
-          {isWatch && (
+          {/* WATCH SPECS — only renders if at least one real spec exists */}
+          {isWatch && hasWatchSpecs && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Technical Specs</h3>
               <div className="grid grid-cols-2 gap-y-6 gap-x-6 border-l-2 border-[var(--accent)] pl-6">
@@ -107,6 +108,7 @@ export default function ProductDetailsView({ product }) {
                 <SpecItem label="Material" value={product.strap} />
                 <SpecItem label="Dial Color" value={product.dialColor} />
                 <SpecItem label="Strap Color" value={product.strapColor} />
+                <SpecItem label="Container" value={product.watchContainer} />
               </div>
             </div>
           )}
@@ -154,7 +156,6 @@ export default function ProductDetailsView({ product }) {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Pass the currently viewed image so cart pre-selects it */}
               <AddToCartButton product={product} selectedImage={activeImage} />
               <StarButton product={product} size="large" />
             </div>
