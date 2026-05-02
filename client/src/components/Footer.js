@@ -45,7 +45,7 @@ export default function Footer({
             </a>
 
             <a
-              href="https://joebakid.eth.limo/"
+              href="https://www.josephbawo.fun/"
               target="_blank"
               rel="noreferrer noopener"
               className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-strong)] px-3 py-1.5 text-[11px] text-[var(--foreground)] transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] sm:w-auto"
