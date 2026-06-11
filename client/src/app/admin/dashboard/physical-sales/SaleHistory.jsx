@@ -16,6 +16,7 @@ const MAX_VISIBLE_PAGES = 5;
 const SaleHistory = memo(function SaleHistory({
   sales,
   costMap,
+  imageMap, // <--- Add imageMap
   loading,
   page,
   onPageChange,
@@ -62,6 +63,7 @@ const SaleHistory = memo(function SaleHistory({
           monthYear={monthYear}
           sales={monthSales}
           costMap={costMap}
+          imageMap={imageMap} // <--- Pass down
           onDelete={onDelete}
         />
       ))}
@@ -77,7 +79,7 @@ const SaleHistory = memo(function SaleHistory({
   );
 });
 
-const MonthGroup = memo(function MonthGroup({ monthYear, sales, costMap, onDelete }) {
+const MonthGroup = memo(function MonthGroup({ monthYear, sales, costMap, imageMap, onDelete }) {
   const totals = useMemo(() => calculateMonthTotals(sales, costMap), [sales, costMap]);
 
   return (
@@ -92,7 +94,13 @@ const MonthGroup = memo(function MonthGroup({ monthYear, sales, costMap, onDelet
         </div>
       </div>
       {sales.map((sale) => (
-        <SaleCard key={sale.id} sale={sale} costMap={costMap} onDelete={onDelete} />
+        <SaleCard 
+          key={sale.id} 
+          sale={sale} 
+          costMap={costMap} 
+          imageMap={imageMap} // <--- Pass down
+          onDelete={onDelete} 
+        />
       ))}
     </div>
   );
@@ -123,7 +131,7 @@ const Pagination = memo(function Pagination({ currentPage, totalPages, onPageCha
   );
 });
 
-function LoadingSkeleton() { /* ... unchanged ... */ return <div className="space-y-3 animate-pulse">Loading...</div>; }
-function EmptyState() { /* ... unchanged ... */ return <div className="py-20 text-center">No sales yet.</div>; }
+function LoadingSkeleton() { return <div className="space-y-3 animate-pulse">Loading...</div>; }
+function EmptyState() { return <div className="py-20 text-center">No sales yet.</div>; }
 
 export default SaleHistory;

@@ -51,7 +51,6 @@ export const metadata: Metadata = {
     siteName: "Chronolite",
     images: [
       {
-        // ✅ Use relative path — metadataBase will prepend the domain
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
@@ -65,7 +64,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Chronolite | Luxury Timepieces",
     description: "Craftsmanship excellence in every tick.",
-    // ✅ Use relative path here too
     images: ["/og-image.jpg"],
   },
 
@@ -110,7 +108,11 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-      <body className="flex min-h-screen flex-col antialiased text-[var(--foreground)] bg-[var(--background)]">
+      {/* 
+        Added font-[family-name:var(--font-body)] as a foolproof way 
+        to ensure Tailwind applies your new body font globally.
+      */}
+      <body className="font-[family-name:var(--font-body)] flex min-h-screen flex-col antialiased text-[var(--foreground)] bg-[var(--background)]">
         <Providers>
           <Navbar />
           <main className="flex-1">{children}</main>

@@ -10,12 +10,13 @@ import CustomFieldsSection from "./CustomFieldsSection";
 import InTransitSection from "./InTransitSection";
 import ImageUploader from "./ImageUploader";
 
+// Added 'source' to the empty form state
 const emptyForm = {
   name: "", price: "", costPrice: "", description: "", category: "",
   collection: "", images: [], inTransit: false, transitNote: "",
   caseSize: "40mm", movement: "Quartz", powerSource: "Battery",
   dialColor: "", strapColor: "All", perfumeSize: "",
-  weight: "",
+  weight: "", source: "", 
 };
 
 // Main admin email - sees everything
@@ -30,7 +31,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const [categories, setCategories] = useState(["Watches", "Perfumes"]);
 
   // 1. TRACK BLOB URLS IN A REF
-  // This keeps a master list of created URLs that won't be cleared on every re-render.
   const blobUrlsRef = useRef([]);
 
   const isEditing = Boolean(editingProduct);
@@ -45,7 +45,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         if (data.length > 0) {
           const cats = data.map((c) => c.name);
           setCategories(cats);
-          // Set first category as default for new products
           if (!editingProduct && !form.category) {
             setForm((prev) => ({ ...prev, category: cats[0] }));
           }
@@ -56,7 +55,15 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
   useEffect(() => {
     if (editingProduct) {
-      setForm({ ...emptyForm, ...editingProduct, price: String(editingProduct.price || ""), costPrice: String(editingProduct.costPrice || ""), images: [] });
+      // Ensure source is captured if editing an existing product
+      setForm({ 
+        ...emptyForm, 
+        ...editingProduct, 
+        price: String(editingProduct.price || ""), 
+        costPrice: String(editingProduct.costPrice || ""), 
+        source: editingProduct.source || "",
+        images: [] 
+      });
       setExistingImages(editingProduct.images || []);
       const standardKeys = Object.keys(emptyForm).concat(["id", "createdAt", "updatedAt", "_id", "__v", "slug", "inStock", "createdBy"]);
       const extraFields = Object.keys(editingProduct).filter((key) => !standardKeys.includes(key)).map((key) => ({ label: key, value: String(editingProduct[key]) }));
@@ -72,8 +79,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
   /**
    * 2. STABLE CLEANUP LOGIC
-   * This effect runs ONCE when the component mounts and the cleanup runs ONCE when it unmounts.
-   * This ensures images only disappear when you close the form.
    */
   useEffect(() => {
     return () => {
@@ -82,7 +87,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       });
       blobUrlsRef.current = [];
     };
-  }, []); // Empty array = Only cleanup on unmount
+  }, []); 
 
   const setField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
   const setToggle = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.checked }));
@@ -104,7 +109,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
     const newPreviews = files.map((f) => {
       const url = URL.createObjectURL(f);
-      blobUrlsRef.current.push(url); // Save to our master list for final cleanup
+      blobUrlsRef.current.push(url);
       return url;
     });
 
@@ -114,8 +119,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   };
 
   const removeNewImage = (index) => {
-    // We don't revoke here because it's safer to let the final cleanup handle it
-    // to avoid "Preview Unavailable" flickering.
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
     setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   };
@@ -149,7 +152,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       if (isEditing) {
         await updateProduct(editingProduct.id, payload);
       } else {
-        // Pass the admin's user ID when creating a new product
         await createProduct(payload, user?.id);
       }
 
@@ -181,12 +183,33 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
           onRemoveExisting={removeExistingImage}
           onRemoveNew={removeNewImage}
         />
+        
         <CoreDetailsSection form={form} setField={setField} categories={categories} />
+
+        {/* --- NEW SUPPLIER INFO SECTION --- */}
+        <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4 sm:p-5 shadow-sm">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] px-1">Supplier Info</p>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ml-1">Distributor / Source</label>
+            <input
+              type="text"
+              value={form.source || ""} // <--- Fixed the uncontrolled input error
+              onChange={setField("source")}
+              placeholder="e.g. Lagos Market, Supplier A..."
+              className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
+            />
+          </div>
+        </div>
+        {/* --------------------------------- */}
+
         {isWatchCategory && <WatchSpecsSection form={form} setField={setField} />}
         {isPerfumeCategory && <PerfumeSpecsSection form={form} setField={setField} />}
         {isGoldCategory && <GoldSpecsSection form={form} setField={setField} />}
+        
         <CustomFieldsSection customFields={customFields} onAdd={addCustomField} onRemove={removeCustomField} onUpdate={updateCustomField} />
+        
         <InTransitSection form={form} setField={setField} setToggle={setToggle} />
+        
         <button type="submit" disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-xl disabled:opacity-50 transition-all active:scale-95">
           {loading ? "Saving to Cloud..." : isEditing ? "Update Product" : "Save Product"}
         </button>

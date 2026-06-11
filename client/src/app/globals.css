@@ -1,12 +1,18 @@
 @import "tailwindcss";
 
+/* 1. TELL TAILWIND V4 ABOUT YOUR FONTS */
+@theme {
+  --font-display: var(--font-display), serif;
+  --font-body: var(--font-body), sans-serif;
+}
+
 /* LIGHT MODE VARIABLES */
 :root, [data-theme="light"] {
   --background: #f7f3ed;
   --background-strong: #efeadf;
   --surface: #ffffff;
   --surface-strong: #e9e2d5; 
-  --foreground: #1a1814; /* Dark text */
+  --foreground: #1a1814; 
   --muted: #6b6358;               
   --border: rgba(26, 24, 20, 0.15); 
   --accent: #915a2f;
@@ -28,7 +34,7 @@
   --background-strong: #101010;
   --surface: #161616;
   --surface-strong: #1a1a1a;
-  --foreground: #f5f1e8; /* Light text */
+  --foreground: #f5f1e8; 
   --muted: #b0a79a;
   --border: rgba(245, 241, 232, 0.1);
   --accent: #d7a06c;
@@ -53,6 +59,14 @@ body {
   color: var(--foreground);
   transition: background-color 0.3s ease, color 0.3s ease;
   overflow-x: hidden;
+  
+  /* 2. APPLY THE BODY FONT HERE */
+  font-family: var(--font-body);
+}
+
+/* 3. APPLY THE DISPLAY FONT TO HEADINGS */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
 }
 
 /* Hide scrollbar but keep scroll functionality */
@@ -64,21 +78,9 @@ body {
   scrollbar-width: none;
 }
 
-/* GLOBAL VISIBILITY RESET: Forces text to follow theme variables */
-/* h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input {
-  color: var(--foreground) !important;
-} */
-
-/* Specific fix for buttons with backgrounds */
-button, .btn {
-  /* background-color: var(--surface-strong); */
-  /* border: 1px solid var(--border); */
-}
-
 /* Inverse class for primary actions */
 .bg-inverse {
   background-color: var(--inverse-bg) !important;
-  /* background-color:red; */
   color: var(--inverse-fg) !important;
 }
 

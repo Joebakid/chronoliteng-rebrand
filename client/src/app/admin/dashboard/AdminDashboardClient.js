@@ -18,6 +18,7 @@ import InTransitTab from "./InTransitTab";
 import PhysicalSalesTab from "./PhysicalSalesTab";
 import CategoriesTab from "./CategoriesTab";
 import PromosTab from "./PromosTab";
+import SupplierTab from "./SupplierTab"; // <-- NEW IMPORT
 import PageLoader from "@/components/PageLoader";
 
 // Constants
@@ -334,6 +335,8 @@ const TabContent = memo(function TabContent({
       return <OrdersTab orders={orders} loadingOrders={loadingOrders} />;
     case "Settings":
       return <CategoriesTab user={user} />;
+    case "Suppliers": // <-- NEW TAB ADDED HERE
+      return <SupplierTab products={products} />;
     default:
       return null;
   }

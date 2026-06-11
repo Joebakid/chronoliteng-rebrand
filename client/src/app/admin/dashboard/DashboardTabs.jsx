@@ -5,8 +5,9 @@ const TABS = [
   { key: "Orders", short: "Orders" },
   { key: "Walk-in", short: "Walk-in" },
   { key: "In Transit", short: "Transit" },
-  { key: "Promotions", short: "Promos" }, // Entry for your new Promotions tab
+  { key: "Promotions", short: "Promos" },
   { key: "Users", short: "Users" },
+  { key: "Suppliers", short: "Suppliers" }, // <--- Added Suppliers here!
   { key: "Settings", short: "Settings" },
 ];
 

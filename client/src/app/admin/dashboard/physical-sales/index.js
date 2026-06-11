@@ -18,6 +18,18 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
 
   // Build cost map once
   const costMap = useMemo(() => buildCostMap(products), [products]);
+  
+  // Build image map once to match product IDs or names to their images
+  const imageMap = useMemo(() => {
+    const map = {};
+    for (const p of products) {
+      // Adapt this if your product image prop is named differently (e.g., p.imageUrl or p.image)
+      const img = p.images?.[0] || p.imageUrl || p.image;
+      if (p.id) map[p.id] = img;
+      if (p.name) map[p.name.toLowerCase()] = img;
+    }
+    return map;
+  }, [products]);
 
   // Fetch sales on mount only
   useEffect(() => {
@@ -91,6 +103,7 @@ export default function PhysicalSalesTab({ products = [], onSaleRecorded }) {
         <SaleHistory
           sales={sales}
           costMap={costMap}
+          imageMap={imageMap} // Passed down here
           loading={loading}
           page={page}
           onPageChange={handlePageChange}
