@@ -87,7 +87,7 @@ export default function ProductDetailsView({ product }) {
             <p className="text-[0.7rem] font-black uppercase tracking-[0.4em] text-[var(--accent)]">
               {product.collection || "Premium Collection"}
             </p>
-            <h1 className="font-display text-4xl font-bold leading-tight tracking-tight text-[var(--foreground)] sm:text-5xl lg:text-6xl">
+            <h1 className=" text-4xl font-bold leading-tight tracking-tight text-[var(--foreground)] sm:text-5xl lg:text-6xl">
               {product.name}
             </h1>
           </div>
