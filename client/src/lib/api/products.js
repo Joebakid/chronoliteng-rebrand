@@ -10,6 +10,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  increment, // <-- ADDED: Needed for the view counter
 } from "firebase/firestore";
 import { db, formatFirebaseDoc } from "./firebase";
 
@@ -133,4 +134,19 @@ export async function toggleProductStock(id, inStock) {
   });
   await fetch("/api/revalidate", { method: "POST" }).catch(() => {});
   return true;
+}
+
+/**
+ * --- NEW: INCREMENT PRODUCT VIEWS ---
+ * Silently increments the 'views' counter by 1.
+ */
+export async function incrementProductViews(id) {
+  if (!id) return;
+  try {
+    await updateDoc(doc(db, "products", id), {
+      views: increment(1)
+    });
+  } catch (err) {
+    console.error("Failed to increment views:", err);
+  }
 }

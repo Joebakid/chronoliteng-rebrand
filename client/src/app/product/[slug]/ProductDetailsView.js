@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AddToCartButton from "@/components/AddToCartButton";
 import BackHomeButton from "@/components/BackHomeButton";
 import ProductGallery from "@/components/ProductGallery";
 import StarButton from "@/components/StarButton";
 import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
+import { incrementProductViews } from "@/lib/api"; // <-- NEW IMPORT
 
 export default function ProductDetailsView({ product }) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // --- NEW: INCREMENT VIEWS ON LOAD ---
+  useEffect(() => {
+    if (product && product.id) {
+      // Fire and forget - silently increments the view count in the background
+      incrementProductViews(product.id);
+    }
+  }, [product?.id]);
 
   const allImages = resolveProductImages(product);
   const [activeImage, setActiveImage] = useState(
@@ -24,7 +33,7 @@ export default function ProductDetailsView({ product }) {
 
   const standardKeys = [
     "id", "_id", "slug", "inStock", "createdAt", "updatedAt", "__v", "publishedAt",
-    "name", "price", "costPrice", "description", "category",
+    "name", "price", "costPrice", "description", "category", "views", // Added 'views' to standard keys so it doesn't show as a custom spec
     "collection", "images", "inTransit", "transitNote", "colors",
     "caseSize", "movement", "powerSource", "strap", "dialColor", "strapColor",
     "perfumeSize", "createdBy", "weight", "watchContainer", "material",
