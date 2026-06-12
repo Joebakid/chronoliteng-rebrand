@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { createProduct, updateProduct, getCategories } from "@/lib/api";
+import { useState, useEffect, useRef, useMemo } from "react";
+// Added getProducts to extract legacy suppliers
+import { createProduct, updateProduct, getCategories, getSuppliers, createSupplier, getProducts } from "@/lib/api";
 import CoreDetailsSection from "./CoreDetailsSection";
 import WatchSpecsSection from "./WatchSpecsSection";
 import PerfumeSpecsSection from "./PerfumeSpecsSection";
@@ -10,7 +11,6 @@ import CustomFieldsSection from "./CustomFieldsSection";
 import InTransitSection from "./InTransitSection";
 import ImageUploader from "./ImageUploader";
 
-// Added 'source' to the empty form state
 const emptyForm = {
   name: "", price: "", costPrice: "", description: "", category: "",
   collection: "", images: [], inTransit: false, transitNote: "",
@@ -19,7 +19,6 @@ const emptyForm = {
   weight: "", source: "", 
 };
 
-// Main admin email - sees everything
 const MAIN_ADMIN_EMAIL = "josephbawo@gmail.com";
 
 export default function ProductForm({ editingProduct, onSuccess, onCancel, onStatusChange, user }) {
@@ -30,7 +29,13 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState(["Watches", "Perfumes"]);
 
-  // 1. TRACK BLOB URLS IN A REF
+  // --- SUPPLIER STATES ---
+  const [dbSuppliers, setDbSuppliers] = useState([]);
+  const [legacySources, setLegacySources] = useState([]); // Stores old suppliers not in DB
+  const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [savingSupplier, setSavingSupplier] = useState(false);
+
   const blobUrlsRef = useRef([]);
 
   const isEditing = Boolean(editingProduct);
@@ -39,6 +44,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const isPerfumeCategory = categoryLower === "perfumes" || categoryLower === "perfume";
   const isGoldCategory = categoryLower === "gold" || categoryLower === "gold replica";
 
+  // Fetch Categories
   useEffect(() => {
     getCategories(user?.id, user?.email)
       .then((data) => {
@@ -51,11 +57,44 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         }
       })
       .catch(() => setCategories(["Watches", "Perfumes"]));
+  }, [user?.id, user?.email, editingProduct, form.category]);
+
+  // --- FETCH BOTH OFFICIAL SUPPLIERS & LEGACY SOURCES ---
+  useEffect(() => {
+    // 1. Get official suppliers from new DB table
+    getSuppliers()
+      .then((data) => {
+        if (Array.isArray(data)) setDbSuppliers(data);
+      })
+      .catch((err) => console.error("Failed to load suppliers", err));
+
+    // 2. Get all products to extract legacy typed-in suppliers
+    getProducts(user?.id, user?.email)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const sources = new Set();
+          data.forEach((p) => {
+            if (p.source && p.source.trim() !== "") {
+              sources.add(p.source.trim());
+            }
+          });
+          setLegacySources(Array.from(sources));
+        }
+      })
+      .catch((err) => console.error("Failed to extract legacy sources", err));
   }, [user?.id, user?.email]);
+
+  // --- COMBINE THEM INTO ONE MASTER LIST ---
+  const allSuppliers = useMemo(() => {
+    const combinedSet = new Set([
+      ...dbSuppliers.map((s) => s.name),
+      ...legacySources
+    ]);
+    return Array.from(combinedSet).sort((a, b) => a.localeCompare(b));
+  }, [dbSuppliers, legacySources]);
 
   useEffect(() => {
     if (editingProduct) {
-      // Ensure source is captured if editing an existing product
       setForm({ 
         ...emptyForm, 
         ...editingProduct, 
@@ -75,11 +114,8 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       setExistingImages([]);
       setImagePreviews([]);
     }
-  }, [editingProduct]);
+  }, [editingProduct, categories]);
 
-  /**
-   * 2. STABLE CLEANUP LOGIC
-   */
   useEffect(() => {
     return () => {
       blobUrlsRef.current.forEach((url) => {
@@ -100,9 +136,6 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
     setCustomFields(updated);
   };
 
-  /**
-   * 3. SAFE FILE HANDLING
-   */
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -135,6 +168,23 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
     const result = await res.json();
     if (!res.ok) throw new Error(result.error?.message || "Upload failed");
     return result.secure_url;
+  };
+
+  const handleCreateSupplier = async () => {
+    if (!newSupplierName.trim()) return;
+    setSavingSupplier(true);
+    try {
+      const created = await createSupplier(newSupplierName.trim());
+      setDbSuppliers((prev) => [...prev, created]);
+      setForm((prev) => ({ ...prev, source: created.name })); 
+      setNewSupplierName("");
+      setIsAddingSupplier(false);
+      onStatusChange({ type: "success", message: "Supplier added successfully!" });
+    } catch (err) {
+      onStatusChange({ type: "error", message: err.message || "Failed to add supplier." });
+    } finally {
+      setSavingSupplier(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -186,18 +236,60 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         
         <CoreDetailsSection form={form} setField={setField} categories={categories} />
 
-        {/* --- NEW SUPPLIER INFO SECTION --- */}
+        {/* --- DYNAMIC SUPPLIER INFO SECTION --- */}
         <div className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-4 sm:p-5 shadow-sm">
           <p className="text-[9px] font-black uppercase tracking-widest text-[var(--accent)] px-1">Supplier Info</p>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ml-1">Distributor / Source</label>
-            <input
-              type="text"
-              value={form.source || ""} // <--- Fixed the uncontrolled input error
-              onChange={setField("source")}
-              placeholder="e.g. Lagos Market, Supplier A..."
-              className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
-            />
+            
+            {isAddingSupplier ? (
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={newSupplierName}
+                  onChange={(e) => setNewSupplierName(e.target.value)}
+                  placeholder="e.g. Lagos Market..."
+                  className="flex-1 appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateSupplier}
+                  disabled={savingSupplier || !newSupplierName.trim()}
+                  className="px-4 py-3 bg-[var(--foreground)] text-[var(--surface)] text-xs font-bold uppercase tracking-wider rounded-xl hover:opacity-90 disabled:opacity-50 transition"
+                >
+                  {savingSupplier ? "..." : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingSupplier(false)}
+                  className="px-3 py-3 text-xs font-bold uppercase tracking-wider text-red-500 hover:text-red-700 transition"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <select
+                  value={form.source || ""}
+                  onChange={setField("source")}
+                  className="flex-1 appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
+                >
+                  <option value="">-- No Supplier Assigned --</option>
+                  {allSuppliers.map((supplierName) => (
+                    <option key={supplierName} value={supplierName}>{supplierName}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingSupplier(true)}
+                  className="px-4 py-3 border border-dashed border-[var(--border)] text-[var(--foreground)] text-[10px] font-bold uppercase tracking-widest rounded-xl hover:border-[var(--accent)] hover:text-[var(--accent)] transition whitespace-nowrap"
+                >
+                  + New
+                </button>
+              </div>
+            )}
+            
           </div>
         </div>
         {/* --------------------------------- */}

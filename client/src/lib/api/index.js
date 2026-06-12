@@ -11,3 +11,4 @@ export * from "./analytics";
 export * from "./physicalSales";
 export * from "./categories";
 export * from "./stars";
+export * from "./suppliers";
