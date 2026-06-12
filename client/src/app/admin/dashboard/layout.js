@@ -53,7 +53,7 @@ export default function AdminLayout({ children }) {
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.28em] text-[var(--muted)]">
             Admin Dashboard
           </p>
-          <h1 className="font-display mt-2 text-2xl font-semibold text-[var(--foreground)]">
+          <h1 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
             {pathname === "/admin/requests" ? "Requests inbox" : "Product management"}
           </h1>
         </div>

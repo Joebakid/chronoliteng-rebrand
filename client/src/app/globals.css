@@ -1,19 +1,21 @@
+/* 1. REQUIRED IMPORTS AT THE VERY TOP */
+@import url('https://fonts.googleapis.com/css2?family=Chelsea+Market&family=Google+Sans+Code:ital,wght,MONO@0,300..800,1;1,300..800,1&display=swap');
 @import "tailwindcss";
 
-/* 1. TELL TAILWIND V4 ABOUT YOUR FONTS */
+/* 2. TAILWIND THEME CONFIGURATION */
 @theme {
-  --font-display: var(--font-display), serif;
-  --font-body: var(--font-body), sans-serif;
+  --font-display: "Comic Neue", cursive;
+  --font-body: "Comic Neue", cursive;
 }
 
-/* LIGHT MODE VARIABLES */
+/* 3. LIGHT MODE VARIABLES */
 :root, [data-theme="light"] {
   --background: #f7f3ed;
   --background-strong: #efeadf;
   --surface: #ffffff;
   --surface-strong: #e9e2d5; 
   --foreground: #1a1814; 
-  --muted: #6b6358;               
+  --muted: #6b6358;            
   --border: rgba(26, 24, 20, 0.15); 
   --accent: #915a2f;
   --accent-soft: #e5d5c0;
@@ -28,7 +30,7 @@
   --inverse-fg: #f7f3ed;          
 }
 
-/* DARK MODE VARIABLES */
+/* 4. DARK MODE VARIABLES */
 [data-theme="dark"] {
   --background: #090909;
   --background-strong: #101010;
@@ -50,6 +52,7 @@
   --inverse-fg: #f5f1e8;
 }
 
+/* 5. GLOBAL STYLES */
 body {
   min-height: 100vh;
   background-color: var(--background);
@@ -59,26 +62,21 @@ body {
   color: var(--foreground);
   transition: background-color 0.3s ease, color 0.3s ease;
   overflow-x: hidden;
-  
-  /* 2. APPLY THE BODY FONT HERE */
-  font-family: var(--font-body);
+  font-family: "Google Sans Code", monospace;
+  font-optical-sizing: auto;
+  /* font-weight: <weight>; */
+  font-style: normal;
+  font-variation-settings:
+    "MONO" 1;
 }
 
-/* 3. APPLY THE DISPLAY FONT TO HEADINGS */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
+   font-weight: bold;
 }
 
-/* Hide scrollbar but keep scroll functionality */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Inverse class for primary actions */
 .bg-inverse {
   background-color: var(--inverse-bg) !important;
   color: var(--inverse-fg) !important;
@@ -88,4 +86,7 @@ h1, h2, h3, h4, h5, h6 {
   width: min(92vw, 1120px);
   margin-inline: auto;
 }
-@media (min-width: 1024px) { .site-frame { width: 70vw; } }
+
+@media (min-width: 1024px) { 
+  .site-frame { width: 70vw; } 
+}
