@@ -19,10 +19,10 @@ export default function Footer({
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-1 gap-3 py-3 text-xs sm:grid-cols-[auto_1fr_auto] sm:items-center">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-[var(--foreground)] [font-family:var(--font-display)]">
+            <span className="font-semibold text-[var(--foreground)]  ">
               chronoliteng
             </span>
-            <span className="font-semibold lowercase text-[var(--foreground)] [font-family:var(--font-display)]">
+            <span className="font-semibold lowercase text-[var(--foreground)] ">
               © {new Date().getFullYear()}
             </span>
             <p className="text-[var(--muted)] opacity-70">All Rights Reserved</p>

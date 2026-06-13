@@ -21,14 +21,14 @@ export default function NotFound() {
           </p>
 
           {/* Large Minimal Heading */}
-          <h1 className="font-display text-4xl font-bold uppercase tracking-tight text-[var(--foreground)] sm:text-6xl lg:text-7xl">
+          <h1 className=" text-4xl font-bold uppercase tracking-tight text-[var(--foreground)] sm:text-6xl lg:text-7xl">
             Unknown <br className="hidden sm:block" /> Destination
           </h1>
 
           {/* Refined Description */}
           <div className="mx-auto h-[1px] w-12 bg-[var(--border)] my-8" />
           
-          <p className="mx-auto max-w-lg font-body text-[0.75rem] font-medium uppercase leading-relaxed tracking-[0.2em] text-[var(--muted)] opacity-80">
+          <p className="mx-auto max-w-lg  text-[0.75rem] font-medium uppercase leading-relaxed tracking-[0.2em] text-[var(--muted)] opacity-80">
             The link you followed may be broken or the page has been moved. 
             Please verify the address or return to the main collection.
           </p>
