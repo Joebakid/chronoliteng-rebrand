@@ -79,7 +79,7 @@ export default function MinimalUI({
         {/* --- GRID --- */}
         {products.length === 0 ? (
           <div className="mt-10 rounded-[2rem] border border-dashed border-[var(--border)] bg-[var(--surface)] px-4 py-16 text-center">
-            <h2 className="font-display text-2xl font-semibold text-[var(--foreground)] tracking-tight">
+            <h2 className=" text-2xl font-semibold text-[var(--foreground)] tracking-tight">
               No {selectedCategory} Found
             </h2>
             <p className="mt-2 text-xs text-[var(--muted)]">Try adjusting your filters or category.</p>

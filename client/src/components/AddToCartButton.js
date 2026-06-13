@@ -17,18 +17,19 @@ export default function AddToCartButton({ product, selectedImage }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-4 sm:gap-6">
       <button
         type="button"
         onClick={handleAddToCart}
-        className="rounded-full bg-[var(--foreground)] py-0.5 px-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--surface-strong)] sm:py-3 sm:px-6 sm:text-sm"
+        className="rounded-full bg-[var(--foreground)] py-3 px-6 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--surface-strong)] sm:py-4 sm:px-8 sm:text-sm"
       >
         {added ? "Added to Cart ✓" : "Add to Cart"}
       </button>
+      
       <button
         type="button"
         onClick={() => router.push("/cart")}
-        className="rounded-full border border-[var(--border)] py-0.5 px-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] sm:py-3 sm:px-6 sm:text-sm"
+        className="rounded-full border border-[var(--border)] py-3 px-6 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--foreground)] sm:py-4 sm:px-8 sm:text-sm"
       >
         View Cart
       </button>
