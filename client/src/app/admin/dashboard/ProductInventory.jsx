@@ -100,6 +100,10 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
     </button>
   );
 
+  // Helper functions for video detection
+  const isVideo = (url) => typeof url === 'string' && !!url.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i);
+  const isUnsupportedVideo = (url) => typeof url === 'string' && !!url.match(/\.(mov|avi|wmv|mkv|flv)$/i);
+
   return (
     <div className="space-y-5">
       <ConfirmModal
@@ -127,10 +131,29 @@ export default function ProductInventory({ products = [], onEdit, onRefresh }) {
         {paginated.map((p) => {
           const hasMargin = p.costPrice && p.price;
           const isVisible = visibleProfits[p.id];
+          const mainImg = p.images?.[0] || "";
+          
           return (
             <div key={p.id} className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface-strong)] p-4 shadow-sm">
               <div className="flex items-center gap-4">
-                <img src={p.images?.[0]} className="w-14 h-14 rounded-2xl object-cover bg-white" alt="" />
+                
+                {/* --- VIDEO / IMAGE THUMBNAIL RENDERER --- */}
+                <div className="relative w-14 h-14 shrink-0 rounded-2xl overflow-hidden bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
+                  {!mainImg ? (
+                    <span className="text-[8px] font-bold text-[var(--muted)]">N/A</span>
+                  ) : isVideo(mainImg) ? (
+                    isUnsupportedVideo(mainImg) ? (
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-zinc-900 text-center p-1">
+                        <span className="text-[7px] font-black text-red-500 uppercase tracking-tighter leading-tight">MOV<br/>ERR</span>
+                      </div>
+                    ) : (
+                      <video src={mainImg} className="w-full h-full object-cover" muted loop playsInline />
+                    )
+                  ) : (
+                    <img src={mainImg} className="w-full h-full object-cover bg-white" alt="" />
+                  )}
+                </div>
+
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between items-start">
                     <p className="truncate text-[13px] font-bold">{p.name}</p>
