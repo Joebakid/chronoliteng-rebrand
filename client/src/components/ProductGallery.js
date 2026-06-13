@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 export default function ProductGallery({
@@ -8,7 +8,7 @@ export default function ProductGallery({
   fallbackUrl = "",
   className = "",
   colorIndicators = [],
-  onImageChange, // <--- New Prop
+  onImageChange,
 }) {
   const sources = useMemo(() => {
     if (Array.isArray(imageUrls) && imageUrls.length) return imageUrls;
@@ -19,23 +19,20 @@ export default function ProductGallery({
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const [mounted, setMounted] = useState(false);
+  
+  // --- NEW: Track video elements to manually trigger play/pause ---
+  const videoRefs = useRef({}); 
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  /**
-   * SUCCESS LOGIC: 
-   * Whenever 'active' index or 'sources' changes, 
-   * notify the parent component of the current image URL.
-   */
   useEffect(() => {
     if (onImageChange && sources[active]) {
       onImageChange(sources[active]);
     }
   }, [active, sources, onImageChange]);
 
-  // Lock body scroll when lightbox is open
   useEffect(() => {
     if (lightbox) {
       document.body.style.overflow = "hidden";
@@ -45,11 +42,29 @@ export default function ProductGallery({
     return () => { document.body.style.overflow = ""; };
   }, [lightbox]);
 
+  // --- NEW: Play the active video, pause the others ---
+  useEffect(() => {
+    Object.keys(videoRefs.current).forEach((key) => {
+      const videoEl = videoRefs.current[key];
+      if (videoEl) {
+        if (Number(key) === active) {
+          // Play the video and catch any browser autoplay policy errors silently
+          videoEl.play().catch(() => {}); 
+        } else {
+          videoEl.pause();
+        }
+      }
+    });
+  }, [active]);
+
   if (!sources.length) return null;
 
   const hasMultiple = sources.length > 1;
   const prev = () => setActive((i) => (i - 1 + sources.length) % sources.length);
   const next = () => setActive((i) => (i + 1) % sources.length);
+
+  // Helper to detect if a URL is a video
+  const isVideo = (url) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
 
   const lightboxEl = mounted && lightbox ? createPortal(
     <div
@@ -87,18 +102,36 @@ export default function ProductGallery({
         ×
       </button>
 
-      <img
-        src={sources[active]}
-        alt="Product fullscreen"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          maxHeight: "90vh",
-          maxWidth: "90vw",
-          objectFit: "contain",
-          borderRadius: 16,
-          display: "block",
-        }}
-      />
+      {isVideo(sources[active]) ? (
+        <video
+          key={sources[active]} // Force remount to ensure it auto-plays when changing slides in lightbox
+          src={sources[active]}
+          controls
+          autoPlay
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxHeight: "90vh",
+            maxWidth: "90vw",
+            borderRadius: 16,
+            display: "block",
+            backgroundColor: "#000",
+          }}
+        />
+      ) : (
+        <img
+          key={sources[active]}
+          src={sources[active]}
+          alt="Product fullscreen"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxHeight: "90vh",
+            maxWidth: "90vw",
+            objectFit: "contain",
+            borderRadius: 16,
+            display: "block",
+          }}
+        />
+      )}
 
       {hasMultiple && (
         <>
@@ -186,13 +219,22 @@ export default function ProductGallery({
                     : "border-[var(--border)] opacity-50 hover:opacity-80"
                 }`}
               >
-                <img src={src} alt={`View ${i + 1}`} className="h-full w-full object-cover" />
+                {isVideo(src) ? (
+                  <>
+                    <video src={src} className="h-full w-full object-cover pointer-events-none" muted />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <span className="text-white text-[10px] drop-shadow-md">▶</span>
+                    </div>
+                  </>
+                ) : (
+                  <img src={src} alt={`View ${i + 1}`} className="h-full w-full object-cover" />
+                )}
               </button>
             ))}
           </div>
         )}
 
-        <div className="relative flex-1 flex items-center justify-center min-h-0 min-w-0">
+        <div className="relative flex-1 flex items-center justify-center min-h-0 min-w-0 bg-black rounded-2xl overflow-hidden">
           {sources.map((src, i) => (
             <div
               key={i}
@@ -202,12 +244,24 @@ export default function ProductGallery({
                 pointerEvents: active === i ? "auto" : "none",
               }}
             >
-              <img
-                src={src}
-                alt={`Product image ${i + 1}`}
-                className="h-full w-full object-contain cursor-zoom-in"
-                onClick={() => setLightbox(true)}
-              />
+              {isVideo(src) ? (
+                <video
+                  ref={(el) => (videoRefs.current[i] = el)} // <-- NEW: Attach to our Ref tracker
+                  src={src}
+                  className="h-full w-full object-contain cursor-zoom-in"
+                  onClick={() => setLightbox(true)}
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={src}
+                  alt={`Product image ${i + 1}`}
+                  className="h-full w-full object-contain cursor-zoom-in"
+                  onClick={() => setLightbox(true)}
+                />
+              )}
             </div>
           ))}
 

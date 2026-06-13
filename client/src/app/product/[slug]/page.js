@@ -22,13 +22,17 @@ export async function generateMetadata({ params }) {
     };
   }
 
+  // Cloudinary Magic: Convert .mp4/.mov URL to .jpg so social media link previews don't break
+  const rawImage = resolveProductImage(product) || "";
+  const ogImageUrl = rawImage.replace(/\.(mp4|webm|mov|avi)$/i, ".jpg");
+
   return {
     title: `${product.name} | Chronolite`,
     description: product.description,
     openGraph: {
       title: product.name,
       description: product.description,
-      images: [resolveProductImage(product)],
+      images: [ogImageUrl],
     },
   };
 }
@@ -40,7 +44,7 @@ export default async function Page({ params }) {
   if (!product) {
     return (
       <main className="site-frame py-20 text-center">
-        <h1 className="text-3xl font-semibold text-[var(--foreground)]">Watch not found</h1>
+        <h1 className="text-3xl font-semibold text-[var(--foreground)]">Product not found</h1>
       </main>
     );
   }

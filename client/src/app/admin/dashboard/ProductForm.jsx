@@ -19,7 +19,8 @@ const emptyForm = {
   weight: "", source: "", 
 };
 
-const MAIN_ADMIN_EMAIL = "josephbawo@gmail.com";
+// Abstracted Admin Email
+const MAIN_ADMIN_EMAIL = process.env.NEXT_PUBLIC_MAIN_ADMIN_EMAIL || "josephbawo@gmail.com";
 
 export default function ProductForm({ editingProduct, onSuccess, onCancel, onStatusChange, user }) {
   const [form, setForm] = useState(emptyForm);
@@ -27,11 +28,12 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
   const [imagePreviews, setImagePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(""); // <-- NEW: Tracks sequential upload progress
   const [categories, setCategories] = useState(["Watches", "Perfumes"]);
 
   // --- SUPPLIER STATES ---
   const [dbSuppliers, setDbSuppliers] = useState([]);
-  const [legacySources, setLegacySources] = useState([]); // Stores old suppliers not in DB
+  const [legacySources, setLegacySources] = useState([]);
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [savingSupplier, setSavingSupplier] = useState(false);
@@ -61,22 +63,16 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
 
   // --- FETCH BOTH OFFICIAL SUPPLIERS & LEGACY SOURCES ---
   useEffect(() => {
-    // 1. Get official suppliers from new DB table
     getSuppliers()
-      .then((data) => {
-        if (Array.isArray(data)) setDbSuppliers(data);
-      })
+      .then((data) => { if (Array.isArray(data)) setDbSuppliers(data); })
       .catch((err) => console.error("Failed to load suppliers", err));
 
-    // 2. Get all products to extract legacy typed-in suppliers
     getProducts(user?.id, user?.email)
       .then((data) => {
         if (Array.isArray(data)) {
           const sources = new Set();
           data.forEach((p) => {
-            if (p.source && p.source.trim() !== "") {
-              sources.add(p.source.trim());
-            }
+            if (p.source && p.source.trim() !== "") sources.add(p.source.trim());
           });
           setLegacySources(Array.from(sources));
         }
@@ -84,12 +80,8 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       .catch((err) => console.error("Failed to extract legacy sources", err));
   }, [user?.id, user?.email]);
 
-  // --- COMBINE THEM INTO ONE MASTER LIST ---
   const allSuppliers = useMemo(() => {
-    const combinedSet = new Set([
-      ...dbSuppliers.map((s) => s.name),
-      ...legacySources
-    ]);
+    const combinedSet = new Set([...dbSuppliers.map((s) => s.name), ...legacySources]);
     return Array.from(combinedSet).sort((a, b) => a.localeCompare(b));
   }, [dbSuppliers, legacySources]);
 
@@ -140,13 +132,36 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const newPreviews = files.map((f) => {
+    const validFiles = [];
+    const rejectedFiles = [];
+
+    files.forEach((file) => {
+      // Bumped limit to 15MB to comfortably fit standard smartphone videos
+      const isUnderLimit = file.size <= 15 * 1024 * 1024; 
+
+      if (!isUnderLimit) {
+        rejectedFiles.push(file.name);
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (rejectedFiles.length > 0) {
+      onStatusChange({ 
+        type: "error", 
+        message: `Error: File(s) too big (Max 15MB). Skipped: ${rejectedFiles.join(", ")}` 
+      });
+    }
+
+    if (validFiles.length === 0) return;
+
+    const newPreviews = validFiles.map((f) => {
       const url = URL.createObjectURL(f);
       blobUrlsRef.current.push(url);
       return url;
     });
 
-    setForm((prev) => ({ ...prev, images: [...prev.images, ...files] }));
+    setForm((prev) => ({ ...prev, images: [...prev.images, ...validFiles] }));
     setImagePreviews((prev) => [...prev, ...newPreviews]);
     e.target.value = "";
   };
@@ -164,10 +179,19 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
     const data = new FormData();
     data.append("file", file);
     data.append("upload_preset", uploadPreset);
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: "POST", body: data });
+    
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, { method: "POST", body: data });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error?.message || "Upload failed");
-    return result.secure_url;
+    
+    let finalUrl = result.secure_url;
+    
+    // Auto-transcode unsupported video formats
+    if (finalUrl.match(/\.(mov|avi|wmv|flv|mkv)$/i)) {
+      finalUrl = finalUrl.replace(/\.[^/.]+$/, ".mp4");
+    }
+
+    return finalUrl;
   };
 
   const handleCreateSupplier = async () => {
@@ -191,11 +215,24 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
     e.preventDefault();
     if (loading) return;
     setLoading(true);
+    setUploadProgress("Preparing upload...");
+
     try {
       let imageUrls = [];
+      
+      // --- SEQUENTIAL UPLOAD FIX ---
+      // Instead of Promise.all (which crashes the browser/network when uploading multiple heavy videos),
+      // we upload them one at a time.
       if (form.images.length > 0) {
-        imageUrls = await Promise.all(form.images.map(uploadToCloudinary));
+        for (let i = 0; i < form.images.length; i++) {
+          setUploadProgress(`Uploading file ${i + 1} of ${form.images.length}...`);
+          const url = await uploadToCloudinary(form.images[i]);
+          imageUrls.push(url);
+        }
       }
+
+      setUploadProgress("Saving product details...");
+
       const extras = customFields.reduce((acc, field) => { if (field.label) acc[field.label] = field.value; return acc; }, {});
       const payload = { ...form, ...extras, price: Number(form.price), costPrice: form.costPrice ? Number(form.costPrice) : null, images: isEditing ? [...existingImages, ...imageUrls] : imageUrls };
 
@@ -215,6 +252,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
       onStatusChange({ type: "error", message: err.message || "Failed to save product." });
     } finally {
       setLoading(false);
+      setUploadProgress("");
     }
   };
 
@@ -229,6 +267,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         <ImageUploader
           existingImages={existingImages}
           imagePreviews={imagePreviews}
+          newFiles={form.images}
           onAddFiles={handleFileChange}
           onRemoveExisting={removeExistingImage}
           onRemoveNew={removeNewImage}
@@ -292,8 +331,7 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
             
           </div>
         </div>
-        {/* --------------------------------- */}
-
+        
         {isWatchCategory && <WatchSpecsSection form={form} setField={setField} />}
         {isPerfumeCategory && <PerfumeSpecsSection form={form} setField={setField} />}
         {isGoldCategory && <GoldSpecsSection form={form} setField={setField} />}
@@ -302,8 +340,14 @@ export default function ProductForm({ editingProduct, onSuccess, onCancel, onSta
         
         <InTransitSection form={form} setField={setField} setToggle={setToggle} />
         
-        <button type="submit" disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-xl disabled:opacity-50 transition-all active:scale-95">
-          {loading ? "Saving to Cloud..." : isEditing ? "Update Product" : "Save Product"}
+        <button type="submit" disabled={loading} className="w-full rounded-full bg-[var(--foreground)] py-4 text-sm font-bold uppercase tracking-widest text-[var(--surface-strong)] shadow-xl disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2">
+          {loading && (
+            <svg className="animate-spin h-4 w-4 text-[var(--surface-strong)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          )}
+          {loading ? uploadProgress : isEditing ? "Update Product" : "Save Product"}
         </button>
       </form>
     </div>

@@ -36,12 +36,10 @@ export default function ProductCard({
     }
   }, [user?.id, product?.id]);
 
-  // Don't show star button if user is not logged in
   const showStarButton = !!user?.id;
 
   if (!product) return null;
 
-  // Build image array — support both single and multiple
   const images = (() => {
     if (Array.isArray(product.images) && product.images.length > 0) {
       return product.images;
@@ -97,6 +95,9 @@ export default function ProductCard({
   if (searchQuery) params.set("q", searchQuery);
   const productUrl = `/product/${productPath}${params.toString() ? `?${params.toString()}` : ""}`;
 
+  // Helper to check if the current URL is a video
+  const isVideo = (url) => url?.match(/\.(mp4|webm|ogg|mov)$/i);
+
   return (
     <Link href={productUrl} className="group block h-full">
       <article
@@ -104,32 +105,40 @@ export default function ProductCard({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* Image Container */}
         <div
           className="relative w-full overflow-hidden bg-[var(--surface-strong)]/20 p-4 flex items-center justify-center"
           style={{ height: "220px" }}
         >
-          {/* Images — stack and fade between them */}
           {images.map((src, i) => (
             <div
               key={i}
               className="absolute inset-0 p-4 flex items-center justify-center transition-opacity duration-500"
               style={{ opacity: activeImg === i ? 1 : 0 }}
             >
-              <ImageWithLoader
-                src={src}
-                alt={`${product.name} ${i + 1}`}
-                className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-              />
+              {/* Check if video, render video tag, else render image */}
+              {isVideo(src) ? (
+                <video
+                  src={src}
+                  className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                  autoPlay={hovered} // Only auto-play if hovered
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : (
+                <ImageWithLoader
+                  src={src}
+                  alt={`${product.name} ${i + 1}`}
+                  className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                />
+              )}
             </div>
           ))}
 
-          {/* Brand badge */}
           <span className="absolute left-3 top-3 z-20 rounded-full border border-[var(--border)] bg-[var(--nav)] px-3 py-1 text-[0.55rem] font-bold uppercase tracking-widest backdrop-blur-md">
             {product.collection || "CHRONO"}
           </span>
 
-          {/* Star button */}
           {showStarButton && (
             <button
               onClick={handleStar}
@@ -143,7 +152,6 @@ export default function ProductCard({
             </button>
           )}
 
-          {/* Image count dots — only when multiple */}
           {hasMultiple && (
             <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1 z-20">
               {images.map((_, i) => (
@@ -153,9 +161,7 @@ export default function ProductCard({
                   style={{
                     width: activeImg === i ? 16 : 5,
                     height: 5,
-                    background: activeImg === i
-                      ? "var(--accent)"
-                      : "var(--border)",
+                    background: activeImg === i ? "var(--accent)" : "var(--border)",
                     opacity: activeImg === i ? 1 : 0.6,
                   }}
                 />
@@ -163,7 +169,6 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Photo count badge */}
           {hasMultiple && (
             <span className="absolute right-3 top-3 z-20 rounded-full bg-black/50 px-2 py-0.5 text-[0.55rem] font-bold text-white backdrop-blur-md">
               {images.length} photos
@@ -171,21 +176,14 @@ export default function ProductCard({
           )}
         </div>
 
-        {/* Card body */}
         <div className="flex flex-1 flex-col p-4 gap-3">
           <div className="flex-1">
-            <h2 className="text-[0.88rem] font-semibold line-clamp-1">
-              {product.name}
-            </h2>
-            <p className="text-[0.68rem] text-[var(--muted)] line-clamp-2 mt-1">
-              {product.description}
-            </p>
+            <h2 className="text-[0.88rem] font-semibold line-clamp-1">{product.name}</h2>
+            <p className="text-[0.68rem] text-[var(--muted)] line-clamp-2 mt-1">{product.description}</p>
           </div>
 
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
-            <p className="text-[0.88rem] font-bold text-[var(--price)]">
-              {fmt(product.price)}
-            </p>
+            <p className="text-[0.88rem] font-bold text-[var(--price)]">{fmt(product.price)}</p>
             <button
               onClick={handleAddToCart}
               disabled={adding}

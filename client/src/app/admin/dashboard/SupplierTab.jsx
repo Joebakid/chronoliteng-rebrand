@@ -10,13 +10,10 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
   const [dbSuppliers, setDbSuppliers] = useState([]);
   const [dbCategories, setDbCategories] = useState(["Watches", "Perfumes"]); 
   
-  // --- NEW: THE LOCAL OVERRIDE ENGINE ---
-  // This stores { productId: { category: "New", source: "New" } }
-  // It forces the UI to respect your edits, immune to database delays!
+  // --- LOCAL OVERRIDE ENGINE ---
   const [localEdits, setLocalEdits] = useState({});
   const [localProducts, setLocalProducts] = useState(products); 
 
-  // Safely merge incoming products with our local edits so they never snap back
   useEffect(() => {
     const mergedProducts = products.map((p) => {
       if (localEdits[p.id]) {
@@ -40,14 +37,12 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
   const [undoTimeLeft, setUndoTimeLeft] = useState(0);
   const [undoTimerId, setUndoTimerId] = useState(null);
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (undoTimerId) clearInterval(undoTimerId);
     };
   }, [undoTimerId]);
 
-  // Initial Fetches
   useEffect(() => {
     getSuppliers()
       .then((data) => {
@@ -62,7 +57,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
       .catch((err) => console.error("Failed to load categories:", err));
   }, [user?.id, user?.email]);
 
-  // Group products dynamically
   const groupedBySource = useMemo(() => {
     const groups = {};
 
@@ -91,7 +85,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
     });
   }, [localProducts, dbSuppliers]);
 
-  // States
   const [selectedSource, setSelectedSource] = useState(
     groupedBySource.length > 0 ? groupedBySource[0].name : null
   );
@@ -106,7 +99,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
 
   const activeGroup = groupedBySource.find((g) => g.name === selectedSource);
 
-  // Filter
   const displayedProducts = useMemo(() => {
     if (!activeGroup) return [];
     if (!searchQuery.trim()) return activeGroup.products;
@@ -119,7 +111,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
     );
   }, [activeGroup, searchQuery]);
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(displayedProducts.length / ITEMS_PER_PAGE));
   
   const paginatedProducts = useMemo(() => {
@@ -127,7 +118,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
     return displayedProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [displayedProducts, currentPage]);
 
-  // Handlers
   const handleSourceChange = (name) => {
     setSelectedSource(name);
     setSearchQuery("");
@@ -156,18 +146,15 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
     }
   };
 
-  // --- BULLETPROOF UPDATES ---
   const handleCategoryUpdate = async (productId, newCategory) => {
     setUpdatingId(productId);
     
-    // 1. Memorize this edit so it overrides any stale database fetches
     setLocalEdits((prev) => ({
       ...prev,
       [productId]: { ...prev[productId], category: newCategory }
     }));
 
     try {
-      // 2. Save silently
       await updateProduct(productId, { category: newCategory });
       if (onRefresh) onRefresh(); 
     } catch (err) {
@@ -181,14 +168,12 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
   const handleSupplierUpdate = async (productId, newSource) => {
     setUpdatingId(productId);
     
-    // 1. Memorize this edit
     setLocalEdits((prev) => ({
       ...prev,
       [productId]: { ...prev[productId], source: newSource }
     }));
 
     try {
-      // 2. Save silently
       await updateProduct(productId, { source: newSource });
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -199,7 +184,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
     }
   };
 
-  // --- BULK MOVE OVERRIDE ---
   const handleBulkMove = async () => {
     if (!bulkMoveCat || !bulkMoveSup) return;
 
@@ -214,10 +198,8 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
 
     setIsBulkMoving(true);
     try {
-      // Save snapshot for Undo
       setUndoSnapshot(productsToMove.map(p => ({ id: p.id, oldSource: p.source || "" })));
 
-      // 1. Apply multiple local overrides instantly
       const newEdits = {};
       productsToMove.forEach((p) => {
         newEdits[p.id] = { ...localEdits[p.id], source: bulkMoveSup };
@@ -228,13 +210,11 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
       setBulkMoveCat("");
       setBulkMoveSup("");
 
-      // 2. Silent saves
       await Promise.all(
         productsToMove.map(p => updateProduct(p.id, { source: bulkMoveSup }))
       );
       if (onRefresh) onRefresh();
 
-      // 3. Undo Timer
       if (undoTimerId) clearInterval(undoTimerId);
       setUndoTimeLeft(60);
       
@@ -264,7 +244,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
     setIsBulkMoving(true);
 
     try {
-      // 1. Revert the local overrides
       const revertEdits = {};
       undoSnapshot.forEach((snap) => {
         revertEdits[snap.id] = { ...localEdits[snap.id], source: snap.oldSource };
@@ -274,7 +253,6 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
       clearInterval(undoTimerId);
       setUndoTimeLeft(0);
       
-      // 2. Silent background reverts
       await Promise.all(
         undoSnapshot.map((snap) => updateProduct(snap.id, { source: snap.oldSource }))
       );
@@ -290,7 +268,7 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[280px_1fr] xl:grid-cols-[320px_1fr] lg:items-start relative">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[280px_1fr] xl:grid-cols-[320px_1fr] lg:items-start relative w-full">
       
       {/* UNDO TOAST NOTIFICATION */}
       {undoTimeLeft > 0 && (
@@ -309,28 +287,29 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
         </div>
       )}
 
-      {/* LEFT SIDE: List of Suppliers */}
-      <div className="order-1 flex flex-col gap-2 lg:sticky lg:top-24">
+      {/* LEFT SIDE: List of Suppliers (Responsive Strip/Sidebar) */}
+      <div className="order-1 flex flex-col gap-2 lg:sticky lg:top-24 w-full">
         <h2 className="px-2 text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted)]">
           Suppliers & Sources
         </h2>
-        <div className="flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-2 shadow-sm">
+        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 p-2 sm:p-3 shadow-sm">
           
-          <div className="max-h-[50vh] overflow-y-auto no-scrollbar flex flex-col gap-1 pr-1">
+          {/* Scrollable Container: Horizontal on Mobile, Vertical on Desktop */}
+          <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:max-h-[60vh] no-scrollbar pb-2 lg:pb-0 snap-x">
             {groupedBySource.map((group) => (
               <button
                 key={group.name}
                 onClick={() => handleSourceChange(group.name)}
-                className={`flex items-center justify-between rounded-xl px-4 py-3 text-left transition-all ${
+                className={`flex shrink-0 snap-start items-center justify-between rounded-xl px-4 py-3 text-left transition-all min-w-[200px] lg:min-w-0 ${
                   selectedSource === group.name
                     ? "bg-[var(--foreground)] text-[var(--surface)] shadow-md"
-                    : "hover:bg-[var(--surface)] text-[var(--foreground)]"
+                    : "hover:bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] lg:border-transparent"
                 }`}
               >
-                <span className="text-sm font-bold truncate max-w-[180px]">
+                <span className="text-sm font-bold truncate max-w-[140px] lg:max-w-[180px]">
                   {group.name}
                 </span>
-                <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${
+                <span className={`text-[10px] font-black px-2 py-1 rounded-lg ml-2 ${
                   selectedSource === group.name 
                     ? "bg-[var(--surface)]/20 text-[var(--surface)]" 
                     : "bg-[var(--surface-strong)] text-[var(--muted)]"
@@ -341,10 +320,11 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
             ))}
           </div>
 
-          <hr className="my-2 border-[var(--border)]/50" />
+          <hr className="hidden lg:block my-1 border-[var(--border)]/50" />
 
+          {/* Add Supplier Section */}
           {isAdding ? (
-            <div className="flex flex-col gap-2 rounded-xl bg-[var(--surface)] p-3 shadow-inner border border-[var(--border)]">
+            <div className="flex flex-col gap-2 rounded-xl bg-[var(--surface)] p-3 shadow-inner border border-[var(--border)] w-full shrink-0">
               <input
                 type="text"
                 placeholder="Supplier name..."
@@ -372,7 +352,7 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
           ) : (
             <button
               onClick={() => setIsAdding(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-xs font-bold uppercase tracking-wider text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-xs font-bold uppercase tracking-wider text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
             >
               + Add Supplier
             </button>
@@ -382,29 +362,29 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
       </div>
 
       {/* RIGHT SIDE: Workspace */}
-      <div className="order-2 space-y-6">
+      <div className="order-2 space-y-6 w-full min-w-0">
         
-        {/* BULK ACTION BAR */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 shadow-sm">
+        {/* BULK ACTION BAR (Flex Wrap for Responsiveness) */}
+        <div className="flex flex-col xl:flex-row xl:items-center gap-4 p-4 sm:p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)]/30 shadow-sm">
           <span className="text-xs font-bold uppercase tracking-wider text-[var(--muted)] whitespace-nowrap">
             Bulk Assign:
           </span>
-          <div className="flex flex-1 flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row flex-wrap flex-1 gap-2 sm:gap-3">
             <select
               value={bulkMoveCat}
               onChange={(e) => setBulkMoveCat(e.target.value)}
-              className="appearance-none flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs font-bold text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
+              className="appearance-none flex-1 min-w-[150px] rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs font-bold text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
             >
               <option value="">1. Select Category...</option>
               {dbCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
             
-            <span className="hidden sm:flex items-center text-xs text-[var(--muted)] font-bold">TO</span>
+            <span className="hidden sm:flex items-center text-xs text-[var(--muted)] font-bold self-center">TO</span>
             
             <select
               value={bulkMoveSup}
               onChange={(e) => setBulkMoveSup(e.target.value)}
-              className="appearance-none flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs font-bold text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
+              className="appearance-none flex-1 min-w-[150px] rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs font-bold text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] shadow-sm"
             >
               <option value="">2. Select Target Supplier...</option>
               {groupedBySource.filter(g => g.name !== "Uncategorized").map(g => (
@@ -415,7 +395,7 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
             <button
               onClick={handleBulkMove}
               disabled={isBulkMoving || !bulkMoveCat || !bulkMoveSup}
-              className="rounded-xl bg-[var(--foreground)] px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--surface)] disabled:opacity-50 transition hover:opacity-90 shadow-md whitespace-nowrap"
+              className="rounded-xl w-full sm:w-auto bg-[var(--foreground)] px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--surface)] disabled:opacity-50 transition hover:opacity-90 shadow-md whitespace-nowrap shrink-0"
             >
               {isBulkMoving ? "Moving..." : "Move All"}
             </button>
@@ -424,9 +404,10 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
 
         {activeGroup && (
           <div className="space-y-4">
+            {/* Header & Search */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-1">
-              <div>
-                <h2 className="text-lg font-black text-[var(--foreground)]">
+              <div className="truncate">
+                <h2 className="text-lg font-black text-[var(--foreground)] truncate">
                   {activeGroup.name === "Uncategorized" ? "No Supplier Assigned" : activeGroup.name}
                 </h2>
                 <p className="text-xs text-[var(--muted)] mt-1">
@@ -434,7 +415,7 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
                 </p>
               </div>
 
-              <div className="relative w-full sm:max-w-xs">
+              <div className="relative w-full sm:max-w-xs shrink-0">
                 <input
                   type="text"
                   placeholder="Search items..."
@@ -451,21 +432,22 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
             </div>
 
             {displayedProducts.length === 0 ? (
-              <div className="py-12 text-center text-[var(--muted)] border border-dashed border-[var(--border)] rounded-2xl">
+              <div className="py-12 text-center text-[var(--muted)] border border-dashed border-[var(--border)] rounded-2xl mx-1">
                 {searchQuery.trim() 
                   ? `No items match "${searchQuery}"` 
                   : "No products currently assigned to this supplier."}
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {/* Dynamic Product Grid */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {paginatedProducts.map((product) => {
                     const img = product.images?.[0] || product.image || product.imageUrl || product.coverImage;
                     
                     return (
                       <div key={product.id} className="flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-strong)] shadow-sm transition hover:shadow-md">
                         {/* Image Area */}
-                        <div className="relative h-40 w-full bg-[var(--surface)] border-b border-[var(--border)]">
+                        <div className="relative aspect-[4/3] sm:h-40 sm:aspect-auto w-full bg-[var(--surface)] border-b border-[var(--border)]">
                           {img ? (
                             <img src={img} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
                           ) : (
@@ -480,18 +462,18 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
                           <div className="space-y-2">
                             {/* CATEGORY SELECTOR */}
                             <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 transition-colors hover:border-[var(--accent)]">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] shrink-0">
                                 Category
                               </span>
-                              <div className="relative flex items-center">
+                              <div className="relative flex items-center w-full ml-2">
                                 {updatingId === product.id && (
-                                  <span className="absolute -left-4 h-2 w-2 rounded-full bg-[var(--accent)] animate-ping"></span>
+                                  <span className="absolute -left-3 h-2 w-2 rounded-full bg-[var(--accent)] animate-ping"></span>
                                 )}
                                 <select
                                   value={product.category || ""}
                                   onChange={(e) => handleCategoryUpdate(product.id, e.target.value)}
                                   disabled={updatingId === product.id || isBulkMoving}
-                                  className="appearance-none bg-transparent text-xs font-bold text-[var(--accent)] outline-none cursor-pointer disabled:opacity-50 text-right w-full"
+                                  className="appearance-none bg-transparent text-xs font-bold text-[var(--accent)] outline-none cursor-pointer disabled:opacity-50 text-right w-full truncate"
                                 >
                                   <option value="" disabled>Select...</option>
                                   {dbCategories.map((cat) => (
@@ -503,18 +485,18 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
 
                             {/* SUPPLIER SELECTOR */}
                             <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 transition-colors hover:border-[var(--accent)]">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] shrink-0">
                                 Supplier
                               </span>
-                              <div className="relative flex items-center">
+                              <div className="relative flex items-center w-full ml-2">
                                 {updatingId === product.id && (
-                                  <span className="absolute -left-4 h-2 w-2 rounded-full bg-[var(--accent)] animate-ping"></span>
+                                  <span className="absolute -left-3 h-2 w-2 rounded-full bg-[var(--accent)] animate-ping"></span>
                                 )}
                                 <select
                                   value={product.source || ""}
                                   onChange={(e) => handleSupplierUpdate(product.id, e.target.value)}
                                   disabled={updatingId === product.id || isBulkMoving}
-                                  className="appearance-none bg-transparent text-xs font-bold text-[var(--accent)] outline-none cursor-pointer disabled:opacity-50 text-right w-full"
+                                  className="appearance-none bg-transparent text-xs font-bold text-[var(--accent)] outline-none cursor-pointer disabled:opacity-50 text-right w-full truncate"
                                 >
                                   <option value="">Unassigned</option>
                                   {groupedBySource
@@ -527,13 +509,13 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
                             </div>
                           </div>
 
-                          <div className="mt-auto flex items-end justify-between pt-2">
+                          <div className="mt-auto flex items-end justify-between pt-3">
                             <div>
-                              <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Selling Price</p>
+                              <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Selling</p>
                               <p className="font-bold text-[var(--accent)]">{formatCurrency(product.price)}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Cost Price</p>
+                              <p className="text-[10px] text-[var(--muted)] uppercase tracking-wider">Cost</p>
                               <p className="font-medium text-[var(--foreground)]">{product.costPrice ? formatCurrency(product.costPrice) : "—"}</p>
                             </div>
                           </div>
@@ -545,23 +527,23 @@ export default function SupplierTab({ products = [], user, onRefresh }) {
 
                 {/* --- PAGINATION CONTROLS --- */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-[var(--border)]/50 pt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--border)]/50 pt-4 px-1">
                     <button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:hover:bg-transparent transition"
+                      className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:hover:bg-transparent transition w-full sm:w-auto"
                     >
                       Previous
                     </button>
                     
-                    <span className="text-xs font-bold text-[var(--muted)]">
+                    <span className="text-xs font-bold text-[var(--muted)] w-full sm:w-auto text-center order-first sm:order-none mb-2 sm:mb-0">
                       Page {currentPage} of {totalPages}
                     </span>
 
                     <button
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:hover:bg-transparent transition"
+                      className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl border border-[var(--border)] hover:bg-[var(--surface)] disabled:opacity-30 disabled:hover:bg-transparent transition w-full sm:w-auto"
                     >
                       Next
                     </button>

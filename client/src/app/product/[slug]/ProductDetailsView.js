@@ -6,15 +6,13 @@ import BackHomeButton from "@/components/BackHomeButton";
 import ProductGallery from "@/components/ProductGallery";
 import StarButton from "@/components/StarButton";
 import { resolveProductImage, resolveProductImages } from "@/lib/productImage";
-import { incrementProductViews } from "@/lib/api"; // <-- NEW IMPORT
+import { incrementProductViews } from "@/lib/api";
 
 export default function ProductDetailsView({ product }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // --- NEW: INCREMENT VIEWS ON LOAD ---
   useEffect(() => {
     if (product && product.id) {
-      // Fire and forget - silently increments the view count in the background
       incrementProductViews(product.id);
     }
   }, [product?.id]);
@@ -33,7 +31,7 @@ export default function ProductDetailsView({ product }) {
 
   const standardKeys = [
     "id", "_id", "slug", "inStock", "createdAt", "updatedAt", "__v", "publishedAt",
-    "name", "price", "costPrice", "description", "category", "views", // Added 'views' to standard keys so it doesn't show as a custom spec
+    "name", "price", "costPrice", "description", "category", "views", 
     "collection", "images", "inTransit", "transitNote", "colors",
     "caseSize", "movement", "powerSource", "strap", "dialColor", "strapColor",
     "perfumeSize", "createdBy", "weight", "watchContainer", "material",
@@ -55,7 +53,6 @@ export default function ProductDetailsView({ product }) {
   const displayDescription =
     isExpanded || !shouldTruncate ? description : `${description.substring(0, 160)}...`;
 
-  // watchContainer alone doesn't count as "having specs"
   const hasWatchSpecs =
     product.caseSize || product.movement || product.powerSource ||
     product.strap || product.dialColor || product.strapColor;
@@ -106,7 +103,6 @@ export default function ProductDetailsView({ product }) {
             )}
           </div>
 
-          {/* WATCH SPECS — only renders if at least one real spec exists */}
           {isWatch && hasWatchSpecs && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Technical Specs</h3>
@@ -122,7 +118,6 @@ export default function ProductDetailsView({ product }) {
             </div>
           )}
 
-          {/* GOLD SPECS */}
           {isGold && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Product Details</h3>
@@ -136,7 +131,6 @@ export default function ProductDetailsView({ product }) {
             </div>
           )}
 
-          {/* PERFUME / CUSTOM SPECS */}
           {(!isWatch && !isGold && (isPerfume || customFields.length > 0 || product.perfumeSize)) && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500">
               <h3 className="text-[0.6rem] font-black uppercase tracking-[0.3em] text-[var(--muted)]">Product Details</h3>
@@ -151,7 +145,6 @@ export default function ProductDetailsView({ product }) {
             </div>
           )}
 
-          {/* PRICE + ADD TO CART */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-[var(--border)] pt-8">
             <div className="flex flex-col items-start text-left">
               <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-[var(--muted)] mb-1">Retail Price</p>
