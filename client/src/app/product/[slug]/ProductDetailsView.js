@@ -10,17 +10,39 @@ import { incrementProductViews } from "@/lib/api";
 
 export default function ProductDetailsView({ product }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMediaLoading, setIsMediaLoading] = useState(true);
+
+  const allImages = resolveProductImages(product);
+  const [activeImage, setActiveImage] = useState(
+    allImages[0] || resolveProductImage(product)
+  );
+
+  // 1. Preload effect to detect when media is ready
+  useEffect(() => {
+    setIsMediaLoading(true);
+    if (!activeImage) return;
+
+    // Check if it's a video based on extension (add/remove extensions as needed)
+    const isVideo = activeImage.match(/\.(mp4|webm|ogg)$/i);
+
+    if (isVideo) {
+      const video = document.createElement('video');
+      video.src = activeImage;
+      video.onloadeddata = () => setIsMediaLoading(false);
+      video.onerror = () => setIsMediaLoading(false); // Fallback so it doesn't spin forever
+    } else {
+      const img = new Image();
+      img.src = activeImage;
+      img.onload = () => setIsMediaLoading(false);
+      img.onerror = () => setIsMediaLoading(false); // Fallback
+    }
+  }, [activeImage]);
 
   useEffect(() => {
     if (product && product.id) {
       incrementProductViews(product.id);
     }
   }, [product?.id]);
-
-  const allImages = resolveProductImages(product);
-  const [activeImage, setActiveImage] = useState(
-    allImages[0] || resolveProductImage(product)
-  );
 
   if (!product) return null;
 
@@ -67,11 +89,22 @@ export default function ProductDetailsView({ product }) {
 
         {/* LEFT: GALLERY SECTION */}
         <div className="lg:sticky lg:top-28">
-          <div className="aspect-square w-full overflow-hidden rounded-[3rem] p-6 shadow-2xl sm:p-12 border border-[var(--border)] bg-[var(--surface)]">
+          <div className="relative aspect-square w-full overflow-hidden rounded-[3rem] p-6 shadow-2xl sm:p-12 border border-[var(--border)] bg-[var(--surface)]">
+            
+            {/* 2. Loading Overlay (Skeleton/Spinner) */}
+            {isMediaLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--surface)] animate-pulse">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--muted)] border-t-[var(--accent)]" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">Loading Media</span>
+                </div>
+              </div>
+            )}
+
             <ProductGallery
               imageUrls={allImages}
               fallbackUrl={resolveProductImage(product)}
-              className="h-full w-full object-contain"
+              className={`h-full w-full object-contain transition-opacity duration-500 ${isMediaLoading ? 'opacity-0' : 'opacity-100'}`}
               onImageChange={(url) => setActiveImage(url)}
             />
           </div>
