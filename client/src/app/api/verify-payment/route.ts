@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-function buildOrderEmailHtml({ userName, items, total, reference, delivery }) {
+function buildOrderEmailHtml({ userName, items, totalPaid, plan, reference, delivery }) {
   const fmt = (n) =>
     new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -33,6 +33,30 @@ function buildOrderEmailHtml({ userName, items, total, reference, delivery }) {
       </div>`
     : "";
 
+  const isInstallment = plan && plan.type === "installment";
+
+  const paymentSummaryBlock = isInstallment
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+        <tr>
+          <td style="font-size:13px;color:#aaa;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Amount Paid Today</td>
+          <td style="font-size:20px;color:#d4af37;font-weight:900;text-align:right;">${fmt(totalPaid)}</td>
+        </tr>
+        <tr>
+          <td style="font-size:12px;color:#888;padding-top:6px;">Remaining Balance</td>
+          <td style="font-size:14px;color:#fff;font-weight:bold;text-align:right;padding-top:6px;">${fmt(plan.balanceDue)}</td>
+        </tr>
+        <tr>
+          <td style="font-size:12px;color:#888;padding-top:4px;">Payment Plan</td>
+          <td style="font-size:12px;color:#aaa;text-align:right;padding-top:4px;">${plan.totalInstallments} Installments (30 Days)</td>
+        </tr>
+      </table>`
+    : `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+        <tr>
+          <td style="font-size:13px;color:#aaa;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Total Paid</td>
+          <td style="font-size:20px;color:#d4af37;font-weight:900;text-align:right;">${fmt(totalPaid)}</td>
+        </tr>
+      </table>`;
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -48,20 +72,23 @@ function buildOrderEmailHtml({ userName, items, total, reference, delivery }) {
         </tr>
         <tr>
           <td style="padding:40px;color:#fff;">
-            <p style="margin:0 0 8px;font-size:11px;font-weight:bold;color:#d4af37;text-transform:uppercase;letter-spacing:2px;">Order Confirmed</p>
+            <p style="margin:0 0 8px;font-size:11px;font-weight:bold;color:#d4af37;text-transform:uppercase;letter-spacing:2px;">
+              ${isInstallment ? "Deposit Confirmed" : "Order Confirmed"}
+            </p>
             <h1 style="margin:0 0 20px;font-size:24px;font-weight:700;color:#fff;">Thank you, ${userName || "valued customer"}.</h1>
-            <p style="margin:0 0 32px;font-size:14px;color:#aaa;line-height:1.7;">Your payment has been verified and your order is confirmed. We'll reach out with delivery updates shortly.</p>
+            <p style="margin:0 0 32px;font-size:14px;color:#aaa;line-height:1.7;">
+              ${
+                isInstallment
+                  ? "Your initial installment payment has been verified. You can track and pay your remaining installments directly from your account dashboard."
+                  : "Your payment has been verified and your order is confirmed. We'll reach out with delivery updates shortly."
+              }
+            </p>
 
             <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #1a1a1a;margin-bottom:24px;">
               ${itemRows}
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
-              <tr>
-                <td style="font-size:13px;color:#aaa;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">Total Paid</td>
-                <td style="font-size:20px;color:#d4af37;font-weight:900;text-align:right;">${fmt(total)}</td>
-              </tr>
-            </table>
+            ${paymentSummaryBlock}
 
             ${deliveryBlock}
 
@@ -86,8 +113,6 @@ function buildOrderEmailHtml({ userName, items, total, reference, delivery }) {
 }
 
 // Resolves the best available image from an incoming cart item.
-// CartView sends `selectedVariantImage` as the primary field.
-// We fall back through every possible field name so nothing is lost.
 function resolveItemImage(item) {
   return (
     item.selectedVariantImage ||
@@ -101,7 +126,7 @@ function resolveItemImage(item) {
 
 export async function POST(req) {
   try {
-    const { reference, user, delivery, items, total, promoCode, discountValue } = await req.json();
+    const { reference, user, delivery, items, total, plan, promoCode, discountValue } = await req.json();
 
     if (!reference) {
       return NextResponse.json({ error: "Missing payment reference" }, { status: 400 });
@@ -123,7 +148,9 @@ export async function POST(req) {
     }
 
     const paidAmount = paystackData.data.amount / 100;
-    const expectedAmount = Math.round(total);
+    
+    // Determine expected amount based on plan type or total
+    const expectedAmount = plan ? Math.round(plan.amountPaidToday) : Math.round(total);
 
     if (Math.abs(paidAmount - expectedAmount) > 1) {
       return NextResponse.json(
@@ -132,7 +159,28 @@ export async function POST(req) {
       );
     }
 
-    /* 2. Save verified order to Firestore */
+    /* 2. Process Installment / Full Payment Details */
+    const isInstallment = plan && plan.type === "installment";
+    const totalOrderAmount = plan ? plan.totalAmount : Math.round(total || paidAmount);
+    const balanceDue = isInstallment ? plan.balanceDue : 0;
+    const isFullyPaid = !isInstallment || balanceDue <= 0;
+
+    let updatedSchedule = null;
+    if (isInstallment && Array.isArray(plan.schedule)) {
+      updatedSchedule = plan.schedule.map((slot, index) => {
+        if (index === 0) {
+          return {
+            ...slot,
+            status: "paid",
+            paidAt: new Date().toISOString(),
+            reference,
+          };
+        }
+        return slot;
+      });
+    }
+
+    /* 3. Save verified order to Firestore */
     const orderRef = await addDoc(collection(db, "orders"), {
       userId: user?.id || user?.email || "guest",
       userEmail: user?.email || "",
@@ -144,8 +192,6 @@ export async function POST(req) {
         city: delivery?.city || "",
         state: delivery?.state || "",
       },
-      // Each item is saved with `selectedVariantImage` so the admin
-      // OrdersTab can always find and display the correct watch photo.
       items: items.map((item) => ({
         slug: item.slug || item.id || "",
         name: item.name,
@@ -154,10 +200,26 @@ export async function POST(req) {
         collection: item.collection || "",
         selectedVariantImage: resolveItemImage(item),
       })),
-      total: paidAmount,
-      status: "paid",
+      total: totalOrderAmount,
+      totalAmount: totalOrderAmount,
+      amountPaid: paidAmount,
+      balanceDue: balanceDue,
+      paymentType: isInstallment ? "installment" : "full",
+      paymentStatus: isFullyPaid ? "fully_paid" : "partially_paid",
+      status: isFullyPaid ? "paid" : "partially_paid",
+      dispatchStatus: isFullyPaid ? "pending" : "hold_payment_plan",
+      ...(isInstallment && updatedSchedule
+        ? {
+            installmentPlan: {
+              totalInstallments: plan.totalInstallments,
+              completedInstallments: 1,
+              schedule: updatedSchedule,
+            },
+          }
+        : {}),
       paymentMethod: "paystack",
       paystackRef: reference,
+      authorizationCode: paystackData.data.authorization?.authorization_code || null,
       paystackData: {
         channel: paystackData.data.channel,
         currency: paystackData.data.currency,
@@ -168,12 +230,13 @@ export async function POST(req) {
       createdAt: new Date(),
     });
 
-    /* 3. Send confirmation email via Resend */
+    /* 4. Send confirmation email via Resend */
     if (user?.email && process.env.RESEND_API_KEY) {
       const emailHtml = buildOrderEmailHtml({
         userName: delivery?.name || user.name || user.email,
         items,
-        total: paidAmount,
+        totalPaid: paidAmount,
+        plan,
         reference,
         delivery,
       });
@@ -187,7 +250,9 @@ export async function POST(req) {
         body: JSON.stringify({
           from: "Chronolite <orders@chronolite.com.ng>",
           to: user.email,
-          subject: "Your Chronolite order is confirmed ✓",
+          subject: isInstallment
+            ? "Your Chronolite deposit is confirmed ✓"
+            : "Your Chronolite order is confirmed ✓",
           html: emailHtml,
         }),
       }).catch((err) => {

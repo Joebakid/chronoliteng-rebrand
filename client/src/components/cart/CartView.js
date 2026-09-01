@@ -21,16 +21,13 @@ const formatPrice = (amount) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
-// Resolves the best available image from a cart item.
-// Tries every possible field name so both variant-selected and
-// default (no variant picked) items always have a photo saved to Firestore.
 function resolveCartItemImage(item) {
   return (
-    item.selectedImage ||          // set by updateCartQuantity(slug, qty, imageUrl)
-    item.selectedVariantImage ||   // legacy field name
-    item.image ||                  // single image field
-    item.thumbnail ||              // thumbnail field
-    (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null) || // first in array
+    item.selectedImage ||
+    item.selectedVariantImage ||
+    item.image ||
+    item.thumbnail ||
+    (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null) ||
     ""
   );
 }
@@ -66,7 +63,10 @@ export default function CartView() {
   const [checkoutError, setCheckoutError] = useState("");
   const [paystackLoading, setPaystackLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+
+  // --- SUCCESS STATES ---
   const [isSuccess, setIsSuccess] = useState(false);
+  const [completedPlan, setCompletedPlan] = useState(null);
 
   const paystackLoadedRef = useRef(false);
 
@@ -134,11 +134,6 @@ export default function CartView() {
     }
   };
 
-  const removePromo = () => {
-    setAppliedPromo(null);
-    setPromoError("");
-  };
-
   const loadPaystackScript = () => {
     if (paystackLoadedRef.current) return Promise.resolve();
     return new Promise((resolve, reject) => {
@@ -153,26 +148,29 @@ export default function CartView() {
     });
   };
 
-  const verifyAndSave = async (reference) => {
+  const verifyAndSave = async (reference, plan) => {
     setVerifying(true);
     setCheckoutError("");
 
     try {
-      // Build the items array with a guaranteed image for every item
-      const itemsToSave = cartItems.map((item) => {
-        const resolvedImage = resolveCartItemImage(item);
-        return {
-          id: item.id || item._id,
-          slug: item.slug,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          collection: item.collection,
-          // Always saved as `selectedVariantImage` so the admin panel
-          // and OrdersTab can reliably find it under one field name
-          selectedVariantImage: resolvedImage,
-        };
-      });
+      const itemsToSave = cartItems.map((item) => ({
+        id: item.id || item._id,
+        slug: item.slug,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        collection: item.collection,
+        selectedVariantImage: resolveCartItemImage(item),
+      }));
+
+      const activePlan = plan || {
+        type: "full",
+        totalAmount: Math.round(finalTotal),
+        amountPaidToday: Math.round(finalTotal),
+        balanceDue: 0,
+        totalInstallments: 1,
+        schedule: [{ installment: 1, amount: Math.round(finalTotal), dueDate: new Date().toISOString(), status: "pending" }],
+      };
 
       const res = await fetch("/api/verify-payment", {
         method: "POST",
@@ -185,6 +183,7 @@ export default function CartView() {
           delivery: deliveryInfo,
           items: itemsToSave,
           total: finalTotal,
+          plan: activePlan,
           promoCode: appliedPromo?.code || null,
           discountValue: discountAmount,
         }),
@@ -193,6 +192,7 @@ export default function CartView() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Payment verification failed");
 
+      setCompletedPlan(activePlan);
       clearCart();
       setIsSuccess(true);
     } catch (err) {
@@ -202,7 +202,7 @@ export default function CartView() {
     }
   };
 
-  const handlePaystack = async () => {
+  const handlePaystack = async (plan) => {
     setCheckoutError("");
     const emailAddress = user?.email || deliveryInfo.email;
 
@@ -215,6 +215,8 @@ export default function CartView() {
       return;
     }
 
+    const chargeAmountNaira = plan?.amountPaidToday || finalTotal;
+
     try {
       setPaystackLoading(true);
       await loadPaystackScript();
@@ -222,33 +224,24 @@ export default function CartView() {
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
         email: emailAddress,
-        amount: Math.round(finalTotal * 100),
+        amount: Math.round(chargeAmountNaira * 100),
         currency: "NGN",
         ref: `Chrono_${Date.now()}`,
         metadata: {
+          paymentType: plan?.type || "full",
+          totalInstallments: plan?.totalInstallments || 1,
           custom_fields: [
             { display_name: "Customer Name", value: deliveryInfo.name },
             { display_name: "Phone", value: deliveryInfo.phone },
             {
               display_name: "Address",
-              value: [deliveryInfo.address, deliveryInfo.city, deliveryInfo.state]
-                .filter(Boolean)
-                .join(", "),
-            },
-            {
-              display_name: "Variants Ordered",
-              value: cartItems
-                .map((i) => {
-                  const img = resolveCartItemImage(i);
-                  return `${i.name} (${img ? "Variant: " + img : "Default"})`;
-                })
-                .join(", "),
+              value: [deliveryInfo.address, deliveryInfo.city, deliveryInfo.state].filter(Boolean).join(", "),
             },
           ],
         },
         callback: ({ reference }) => {
           setPaystackLoading(false);
-          verifyAndSave(reference);
+          verifyAndSave(reference, plan);
         },
         onClose: () => setPaystackLoading(false),
       });
@@ -260,13 +253,16 @@ export default function CartView() {
     }
   };
 
+  // --- DYNAMIC CONFIRMATION SCREEN ---
   if (isSuccess) {
+    const isInstallment = completedPlan && completedPlan.type === "installment";
+
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in duration-500">
-        <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10 text-green-500">
+      <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in zoom-in duration-500 max-w-lg mx-auto px-4">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10 text-green-500">
           <svg
-            width="48"
-            height="48"
+            width="40"
+            height="40"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -277,14 +273,50 @@ export default function CartView() {
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
-        <h2 className="text-3xl font-black uppercase tracking-tighter italic">Order Confirmed</h2>
-        <p className="mt-4 max-w-sm text-sm text-[var(--muted)] leading-relaxed">
-          Your payment was successful. We've received your order and are preparing it for delivery.
+
+        <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter italic">
+          {isInstallment ? "Deposit Confirmed" : "Order Confirmed"}
+        </h2>
+
+        <p className="mt-3 text-sm text-[var(--muted)] leading-relaxed">
+          {isInstallment
+            ? `Your initial deposit of ${formatPrice(completedPlan.amountPaidToday)} has been verified! Your order is reserved under your 30-day payment plan.`
+            : "Your payment was successful. We've received your order and are preparing it for delivery."}
         </p>
-        <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+
+        {isInstallment && (
+          <div className="mt-6 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left space-y-2.5 shadow-sm">
+            <div className="flex justify-between text-xs">
+              <span className="text-[var(--muted)]">Total Order Cost:</span>
+              <span className="font-bold">{formatPrice(completedPlan.totalAmount)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-[var(--muted)]">Deposit Paid Today:</span>
+              <span className="font-bold text-emerald-500">{formatPrice(completedPlan.amountPaidToday)}</span>
+            </div>
+            <div className="flex justify-between text-xs border-t border-[var(--border)] pt-2">
+              <span className="text-[var(--muted)]">Remaining Balance:</span>
+              <span className="font-bold text-[var(--accent)]">{formatPrice(completedPlan.balanceDue)}</span>
+            </div>
+            <div className="flex justify-between text-[11px] text-[var(--muted)]">
+              <span>Installment Plan:</span>
+              <span>{completedPlan.totalInstallments} payments across 30 days</span>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row w-full justify-center">
+          {isInstallment && (
+            <Link
+             href="/account/profile"
+              className="rounded-full bg-[var(--foreground)] text-[var(--background)] px-8 py-3.5 text-[0.7rem] font-bold uppercase tracking-widest transition hover:opacity-90 shadow-md"
+            >
+              Track & Pay Installments
+            </Link>
+          )}
           <Link
             href="/"
-            className="rounded-full bg-[var(--inverse-bg)] px-10 py-4 text-[0.7rem] font-bold uppercase tracking-widest text-[var(--inverse-fg)] transition hover:scale-105"
+            className="rounded-full border border-[var(--border)] px-8 py-3.5 text-[0.7rem] font-bold uppercase tracking-widest text-[var(--foreground)] transition hover:bg-[var(--surface)]"
           >
             Continue Shopping
           </Link>

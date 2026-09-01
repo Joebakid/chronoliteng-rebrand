@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BackHomeButton from "@/components/BackHomeButton";
-import PageLoader from "@/components/PageLoader"; // Import your loader
+import PageLoader from "@/components/PageLoader";
 import { useAppContext } from "@/app/state/AppContext";
 import { getPurchaseHistory } from "@/lib/purchaseHistory";
 import { getUserRequests } from "@/lib/api";
@@ -14,7 +14,7 @@ import RequestsSection from "./components/RequestsSection";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, authLoading } = useAppContext(); // Get authLoading from context
+  const { user, authLoading } = useAppContext();
 
   const [purchases, setPurchases] = useState([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
@@ -22,42 +22,47 @@ export default function ProfilePage() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
 
-  const fetchRequests = async () => {
+  // --- FETCH PURCHASES ---
+  const fetchPurchases = useCallback(async () => {
+    if (!user) return;
+    setLoadingPurchases(true);
+    try {
+      const data = await getPurchaseHistory(user);
+      setPurchases(data || []);
+    } catch (err) {
+      console.error("[ProfilePage] purchases error:", err);
+    } finally {
+      setLoadingPurchases(false);
+    }
+  }, [user]);
+
+  // --- FETCH REQUESTS ---
+  const fetchRequests = useCallback(async () => {
     if (!user) return;
     setLoadingRequests(true);
     try {
       const data = await getUserRequests(user);
-      setRequests(data);
+      setRequests(data || []);
     } catch (err) {
       console.error("[ProfilePage] requests error:", err);
     } finally {
       setLoadingRequests(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    // 1. Wait for auth check to finish
     if (authLoading) return;
-
-    // 2. If no user after check, don't fetch data
     if (!user) return;
 
-    // 3. Admin Redirect
     if (user.isAdmin) {
       console.log("[ProfilePage] Admin detected, redirecting...");
       router.replace("/admin/dashboard");
       return;
     }
 
-    // 4. Fetch Profile Data
-    setLoadingPurchases(true);
-    getPurchaseHistory(user)
-      .then(setPurchases)
-      .catch((err) => console.error("[ProfilePage] purchases error:", err))
-      .finally(() => setLoadingPurchases(false));
-
+    fetchPurchases();
     fetchRequests();
-  }, [router, user, authLoading]);
+  }, [router, user, authLoading, fetchPurchases, fetchRequests]);
 
   // --- LOADING STATE ---
   if (authLoading) {
@@ -94,7 +99,8 @@ export default function ProfilePage() {
         <BackHomeButton />
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* User Stats & Purchase History */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
           <AccountInfo
             user={user}
@@ -107,9 +113,11 @@ export default function ProfilePage() {
             purchases={purchases}
             loading={loadingPurchases}
             onLightbox={setLightboxImage}
+            onRefresh={fetchPurchases}
           />
         </div>
 
+        {/* Watch Requests Section */}
         <RequestsSection
           user={user}
           requests={requests}
@@ -119,6 +127,7 @@ export default function ProfilePage() {
         />
       </div>
 
+      {/* Lightbox Modal */}
       {lightboxImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setLightboxImage(null)}>
           <div className="relative max-w-sm w-full" onClick={(e) => e.stopPropagation()}>

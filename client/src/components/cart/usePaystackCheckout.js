@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 
 const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
 
-export default function usePaystackCheckout(cartTotal, user, cartItems, deliveryInfo) {
+export default function usePaystackCheckout(user, cartItems, deliveryInfo) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const paystackLoadedRef = useRef(false);
@@ -22,7 +22,7 @@ export default function usePaystackCheckout(cartTotal, user, cartItems, delivery
     });
   };
 
-  const checkout = async () => {
+  const checkout = async (plan) => {
     try {
       setLoading(true);
       await loadPaystack();
@@ -30,20 +30,23 @@ export default function usePaystackCheckout(cartTotal, user, cartItems, delivery
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
         email: user.email,
-        amount: cartTotal * 100,
+        amount: plan.amountPaidToday * 100, // Charge only today's due amount
         currency: "NGN",
         ref: `Chronolite_${Date.now()}`,
+        metadata: {
+          paymentType: plan.type,
+          totalInstallments: plan.totalInstallments,
+        },
         callback: ({ reference }) => {
           fetch("/api/verify-payment", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               reference,
               items: cartItems,
               user,
               delivery: deliveryInfo,
+              plan,
             }),
           });
         },

@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense, useCallback, useMemo, memo } from "react
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAppContext } from "@/app/state/AppContext";
 import { getProducts, getAdminAnalytics, getUsers, getAdminOrders, getPhysicalSales } from "@/lib/api";
-import { calcProfit, buildCostMap } from "./dashboardUtils";
+import { calcProfit, calcMonthlyStats, buildCostMap } from "./dashboardUtils";
 
 import DashboardStats from "./DashboardStats";
 import DashboardMonthCard from "./DashboardMonthCard";
@@ -15,6 +15,7 @@ import DashboardTabs from "./DashboardTabs";
 import ProductsTab from "./ProductsTab";
 import UsersTab from "./UsersTab";
 import OrdersTab from "./OrdersTab";
+import InstallmentsTab from "./InstallmentsTab";
 import InTransitTab from "./InTransitTab";
 import PhysicalSalesTab from "./PhysicalSalesTab";
 import CategoriesTab from "./CategoriesTab";
@@ -42,7 +43,7 @@ export default function AdminDashboardClient() {
   const [viewingMonth, setViewingMonth] = useState(new Date().getMonth());
   const [viewingYear, setViewingYear] = useState(new Date().getFullYear());
 
-  // --- NEW: TOGGLE FOR CHARTS ONLY ---
+  // TOGGLE FOR CHARTS ONLY
   const [isChartsOpen, setIsChartsOpen] = useState(true);
 
   const costMap = useMemo(() => buildCostMap(products), [products]);
@@ -146,30 +147,28 @@ export default function AdminDashboardClient() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }, [router, pathname, searchParams]);
 
-  const monthlyData = useMemo(() => {
-    const inMonth = (item) => {
-      const d = new Date(item.createdAt);
-      return d.getFullYear() === viewingYear && d.getMonth() === viewingMonth;
-    };
-    return {
-      monthlyOnline: orders.filter(inMonth),
-      monthlyPhysical: physicalSales.filter(inMonth)
-    };
+  // Dynamic monthly statistics including installment cash flow
+  const selectedMonthStats = useMemo(() => {
+    return calcMonthlyStats(orders, physicalSales, viewingMonth, viewingYear);
   }, [orders, physicalSales, viewingMonth, viewingYear]);
 
-  const selectedMonthStats = useMemo(() => {
-    const { monthlyOnline, monthlyPhysical } = monthlyData;
-    return {
-      revenue: monthlyOnline.reduce((s, o) => s + (o.total || 0), 0) + monthlyPhysical.reduce((s, o) => s + (o.total || 0), 0),
-      count: monthlyOnline.length + monthlyPhysical.length,
-      physicalCount: monthlyPhysical.length,
-      itemsSold: monthlyOnline.reduce((s, o) => s + (o.items?.length || 0), 0) + monthlyPhysical.reduce((s, o) => s + (o.items?.length || 0), 0)
-    };
-  }, [monthlyData]);
+  const netProfit = useMemo(
+    () => calcProfit(orders, physicalSales, costMap, viewingMonth, viewingYear),
+    [orders, physicalSales, costMap, viewingMonth, viewingYear]
+  );
 
-  const netProfit = useMemo(() => calcProfit(monthlyData.monthlyOnline, monthlyData.monthlyPhysical, costMap, viewingMonth, viewingYear), [monthlyData, costMap, viewingMonth, viewingYear]);
   const inTransitCount = useMemo(() => products.filter((p) => p.inTransit).length, [products]);
-  const walkInCount = useMemo(() => monthlyData.monthlyPhysical.length, [monthlyData]);
+  const walkInCount = useMemo(() => selectedMonthStats.physicalCount, [selectedMonthStats]);
+
+  // Active installment plans badge counter
+  const activeInstallmentsCount = useMemo(() => {
+    return orders.filter(
+      (o) =>
+        (o.paymentType === "installment" || o.installmentPlan) &&
+        o.paymentStatus !== "fully_paid" &&
+        (o.balanceDue || 0) > 0
+    ).length;
+  }, [orders]);
 
   if (authLoading) return <PageLoader text="Loading dashboard..." />;
 
@@ -181,7 +180,7 @@ export default function AdminDashboardClient() {
         <h1 className="text-xl sm:text-2xl font-black text-[var(--foreground)] uppercase tracking-tight">Overview</h1>
       </div>
 
-      {/* --- TOP CARDS (Always Visible) --- */}
+      {/* TOP CARDS */}
       <DashboardStats products={products} fetching={fetching || loadingOrders} selectedMonthStats={selectedMonthStats} />
       
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -189,7 +188,7 @@ export default function AdminDashboardClient() {
         <DashboardProfitCard netProfit={netProfit} loading={loadingOrders} totalSalesCount={selectedMonthStats.count} />
       </div>
 
-      {/* --- CHARTS SECTION (Collapsible) --- */}
+      {/* CHARTS SECTION */}
       <div className="pt-2">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">Analytics & Trends</h2>
@@ -208,14 +207,31 @@ export default function AdminDashboardClient() {
         )}
       </div>
 
-      {/* TABS (Inventory Management) */}
+      {/* NAVIGATION TABS */}
       <div className="sticky top-0 z-30 bg-[var(--background)] py-2 -mx-4 px-4 sm:mx-0 sm:px-0 mt-8">
-        <DashboardTabs activeTab={activeTab} onChange={handleTabChange} inTransitCount={inTransitCount} walkInCount={walkInCount} />
+        <DashboardTabs
+          activeTab={activeTab}
+          onChange={handleTabChange}
+          inTransitCount={inTransitCount}
+          walkInCount={walkInCount}
+          activeInstallmentsCount={activeInstallmentsCount}
+        />
       </div>
 
       <Suspense fallback={<PageLoader text={`Loading ${activeTab}...`} />}>
         <div className="min-h-[400px] w-full">
-          <TabContent activeTab={activeTab} products={products} users={users} orders={orders} fetching={fetching} loadingOrders={loadingOrders} user={user} onRefresh={fetchAll} onStatusChange={setStatus} onSaleRecorded={handleSaleRecorded} />
+          <TabContent
+            activeTab={activeTab}
+            products={products}
+            users={users}
+            orders={orders}
+            fetching={fetching}
+            loadingOrders={loadingOrders}
+            user={user}
+            onRefresh={fetchAll}
+            onStatusChange={setStatus}
+            onSaleRecorded={handleSaleRecorded}
+          />
         </div>
       </Suspense>
     </div>
@@ -241,6 +257,7 @@ const TabContent = memo(function TabContent({ activeTab, products, users, orders
     case "Promotions": return <PromosTab products={products} onStatusChange={onStatusChange} />;
     case "Users": return <UsersTab users={users} fetching={fetching} />;
     case "Orders": return <OrdersTab orders={orders} loadingOrders={loadingOrders} />;
+    case "Installments": return <InstallmentsTab orders={orders} />;
     case "Settings": return <CategoriesTab user={user} />;
     case "Suppliers": return <SupplierTab products={products} user={user} onRefresh={onRefresh} />;
     default: return null;

@@ -1,41 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { calcMonthlyStats } from "./dashboardUtils";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
     maximumFractionDigits: 0,
-  }).format(n);
+  }).format(n || 0);
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-
-function getMonthStats(orders = [], physicalSales = [], year, month) {
-  const inMonth = (o) => {
-    const d = new Date(o.createdAt);
-    return d.getFullYear() === year && d.getMonth() === month;
-  };
-  
-  const online = orders.filter(inMonth);
-  const physical = physicalSales.filter(inMonth);
-  
-  return {
-    count: online.length + physical.length,
-    revenue:
-      online.reduce((s, o) => s + (o.total || 0), 0) +
-      physical.reduce((s, o) => s + (o.total || 0), 0),
-    onlineCount: online.length,
-    physicalCount: physical.length,
-    // Add items sold calculation for synchronization
-    itemsSold: 
-      online.reduce((s, o) => s + (o.items?.length || 0), 0) + 
-      physical.reduce((s, o) => s + (o.items?.length || 0), 0)
-  };
-}
 
 function buildMonthOptions() {
   const now = new Date();
@@ -78,10 +56,12 @@ export default function DashboardMonthCard({
   }, [selectedMonth, selectedYear, onMonthChange, onYearChange]);
 
   const monthOptions = buildMonthOptions();
-  const selected = getMonthStats(orders, physicalSales, selectedYear, selectedMonth);
+
+  // Use cash-flow calculations from dashboardUtils
+  const selected = calcMonthlyStats(orders, physicalSales, selectedMonth, selectedYear);
 
   const prevDate = new Date(selectedYear, selectedMonth - 1, 1);
-  const prev = getMonthStats(orders, physicalSales, prevDate.getFullYear(), prevDate.getMonth());
+  const prev = calcMonthlyStats(orders, physicalSales, prevDate.getMonth(), prevDate.getFullYear());
 
   const revenueChange =
     prev.revenue > 0

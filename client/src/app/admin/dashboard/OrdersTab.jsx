@@ -79,7 +79,9 @@ function DeliveryTab({ orders, onExpandImage }) {
                 </p>
                 <p className="text-[10px] font-mono text-[var(--muted)] opacity-70">ID: {order.id}</p>
              </div>
-             <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Paid</span>
+             <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+               {order.paymentType === "installment" ? "Plan Completed" : "Paid"}
+             </span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border)]/30">
@@ -128,7 +130,6 @@ function AllOrdersTab({ orders, loadingOrders, onExpandImage }) {
       <div className="space-y-4">
         {paginated.map((order) => {
           const isExpanded = expandedOrderId === order.id;
-          // Standardize short ID to match User Profile
           const userFriendlyId = order.id.slice(-6).toUpperCase();
 
           return (
@@ -155,7 +156,7 @@ function AllOrdersTab({ orders, loadingOrders, onExpandImage }) {
 
                 <div className="flex items-center justify-between sm:justify-end gap-6">
                   <div className="text-right">
-                    <p className="text-xl font-black text-[var(--foreground)] tracking-tighter">{fmt(order.total || 0)}</p>
+                    <p className="text-xl font-black text-[var(--foreground)] tracking-tighter">{fmt(order.totalAmount || order.total || 0)}</p>
                     <p className="text-[9px] text-[var(--muted)] font-bold uppercase tracking-widest">{order.items?.length} Items Ordered</p>
                   </div>
                   <div className={`h-8 w-8 rounded-full border border-[var(--border)] flex items-center justify-center transition-transform duration-500 ${isExpanded ? "rotate-180 bg-[var(--accent)] text-white border-transparent" : "text-[var(--muted)]"}`}>
@@ -265,8 +266,17 @@ export default function OrdersTab({ orders = [], loadingOrders }) {
   const [subTab, setSubTab] = useState("orders");
   const [expandedImage, setExpandedImage] = useState(null);
 
+  // ONLY show completed orders (Full payments OR 100% completed installment plans)
+  const completedOrders = orders.filter((order) => {
+    const isInstallment = order.paymentType === "installment" || Boolean(order.installmentPlan);
+    if (!isInstallment) return true;
+    return order.paymentStatus === "fully_paid" || (order.balanceDue || 0) <= 0;
+  });
+
   // Sort orders by newest first
-  const sortedOrders = [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const sortedOrders = [...completedOrders].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
 
   return (
     <div className="w-full space-y-6">
@@ -276,7 +286,7 @@ export default function OrdersTab({ orders = [], loadingOrders }) {
         <button
           onClick={() => setSubTab("orders")}
           className={`px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-            subTab === "orders" ? "bg-[var(--surface-strong)] text-[var(--foreground)] shadow-sm" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            subTab === "orders" ? "bg-[var(--surface-strong)] text-[var(--foreground)] shadow-sm": "text-[var(--muted)] hover:text-[var(--foreground)]"
           }`}
         >
           All Activity

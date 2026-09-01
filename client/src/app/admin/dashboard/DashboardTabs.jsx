@@ -3,11 +3,12 @@
 const TABS = [
   { key: "Products", short: "Products" },
   { key: "Orders", short: "Orders" },
+  { key: "Installments", short: "Plans" }, // <--- Added Installments tab
   { key: "Walk-in", short: "Walk-in" },
   { key: "In Transit", short: "Transit" },
   { key: "Promotions", short: "Promos" },
   { key: "Users", short: "Users" },
-  { key: "Suppliers", short: "Suppliers" }, // <--- Added Suppliers here!
+  { key: "Suppliers", short: "Suppliers" },
   { key: "Settings", short: "Settings" },
 ];
 
@@ -16,6 +17,7 @@ export default function DashboardTabs({
   onChange,
   inTransitCount,
   walkInCount,
+  activeInstallmentsCount = 0,
 }) {
   return (
     <div className="w-full border-b border-[var(--border)]">
@@ -37,8 +39,13 @@ export default function DashboardTabs({
             <span className="sm:hidden">{short}</span>
 
             {/* Visual indicator for Promotions */}
-            {key === "Promotions" && (
-              <span className="text-[10px]">🎟️</span>
+            {key === "Promotions" && <span className="text-[10px]">🎟️</span>}
+
+            {/* Visual indicator for Active Installments */}
+            {key === "Installments" && activeInstallmentsCount > 0 && (
+              <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-[9px] font-black text-black leading-none">
+                {activeInstallmentsCount}
+              </span>
             )}
 
             {key === "In Transit" && inTransitCount > 0 && (

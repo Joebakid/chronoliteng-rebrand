@@ -44,28 +44,51 @@ export default function DashboardCharts({ orders = [], physicalSales = [], produ
 
   const activeCategoryData = allCategoryData.filter(d => !hiddenCategories.includes(d.name));
 
-  // 2. DATA FOR BAR CHART
+  // 2. DATA FOR BAR CHART (Accurately synced with cash flow & installments)
   const monthlyRevenueData = useMemo(() => {
-    const allSales = [...orders, ...physicalSales];
     const monthsMap = {};
-    
+    const now = new Date();
+
+    // Initialize last 6 months
     for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const monthName = d.toLocaleString('default', { month: 'short' });
-      monthsMap[monthName] = { name: monthName, Online: 0, WalkIn: 0 };
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const monthName = d.toLocaleString("default", { month: "short" });
+      monthsMap[key] = { name: monthName, Online: 0, WalkIn: 0 };
     }
 
-    allSales.forEach(sale => {
-      const date = new Date(sale.createdAt);
-      const monthName = date.toLocaleString('default', { month: 'short' });
-      
-      if (monthsMap[monthName]) {
-        const amount = Number(sale.total) || 0;
-        if (sale.type === "physical") {
-          monthsMap[monthName].WalkIn += amount;
-        } else {
-          monthsMap[monthName].Online += amount;
+    // Process Online Orders (split installments across exact paid dates)
+    orders.forEach((order) => {
+      if (order.paymentType === "installment" && Array.isArray(order.installmentPlan?.schedule)) {
+        order.installmentPlan.schedule.forEach((slot) => {
+          if (slot.status === "paid") {
+            const payDate = new Date(slot.paidAt || order.createdAt);
+            if (!isNaN(payDate.getTime())) {
+              const key = `${payDate.getFullYear()}-${payDate.getMonth()}`;
+              if (monthsMap[key]) {
+                monthsMap[key].Online += Number(slot.amount || 0);
+              }
+            }
+          }
+        });
+      } else {
+        const orderDate = new Date(order.createdAt);
+        if (!isNaN(orderDate.getTime())) {
+          const key = `${orderDate.getFullYear()}-${orderDate.getMonth()}`;
+          if (monthsMap[key]) {
+            monthsMap[key].Online += Number(order.totalAmount || order.total || 0);
+          }
+        }
+      }
+    });
+
+    // Process Physical Sales
+    physicalSales.forEach((sale) => {
+      const saleDate = new Date(sale.createdAt);
+      if (!isNaN(saleDate.getTime())) {
+        const key = `${saleDate.getFullYear()}-${saleDate.getMonth()}`;
+        if (monthsMap[key]) {
+          monthsMap[key].WalkIn += Number(sale.total || 0);
         }
       }
     });
@@ -198,7 +221,6 @@ export default function DashboardCharts({ orders = [], physicalSales = [], produ
           </div>
         </div>
 
-        {/* Render the selected list component */}
         {listType === "sold" ? (
           <TopSoldProducts orders={orders} physicalSales={physicalSales} products={products} />
         ) : (

@@ -28,12 +28,12 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.1",
-    "@types/node": "^25.3.3",
-    "@types/react": "^19.2.14",
+    "@types/node": "25.9.5",
+    "@types/react": "19.2.18",
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.9.3"
+    "typescript": "5.9.3"
   },
   "private": true
 }
