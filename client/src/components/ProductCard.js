@@ -40,6 +40,9 @@ export default function ProductCard({
 
   if (!product) return null;
 
+  // Calculate lowest starting deposit (6-part installment option)
+  const minDeposit = Math.ceil(Number(product.price || 0) / 6);
+
   const images = (() => {
     if (Array.isArray(product.images) && product.images.length > 0) {
       return product.images;
@@ -139,6 +142,11 @@ export default function ProductCard({
             {product.collection || "CHRONO"}
           </span>
 
+          {/* INSTALLMENTS BADGE OVERLAY */}
+          <span className="absolute left-3 bottom-3 z-20 flex items-center gap-1 rounded-full border border-amber-500/30 bg-black/80 px-2.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wider text-amber-300 backdrop-blur-md">
+            <span>💳</span> Installments
+          </span>
+
           {showStarButton && (
             <button
               onClick={handleStar}
@@ -183,7 +191,10 @@ export default function ProductCard({
           </div>
 
           <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
-            <p className="text-[0.88rem] font-bold text-[var(--price)]">{fmt(product.price)}</p>
+            <div>
+              <p className="text-[0.88rem] font-bold text-[var(--price)]">{fmt(product.price)}</p>
+              <p className="text-[0.58rem] font-bold text-emerald-500">Deposit {fmt(minDeposit)}</p>
+            </div>
             <button
               onClick={handleAddToCart}
               disabled={adding}
